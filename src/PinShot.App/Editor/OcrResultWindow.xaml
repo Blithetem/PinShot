@@ -1,0 +1,26 @@
+<Window x:Class="PinShot.App.Editor.OcrResultWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        SizeToContent="WidthAndHeight" WindowStartupLocation="CenterScreen"
+        ShowInTaskbar="False" Topmost="True" ResizeMode="CanResizeWithGrip" Focusable="True">
+    <Border Background="{StaticResource ToolbarBackgroundBrush}" CornerRadius="12" Padding="20">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="24" ShadowDepth="4" Direction="270" Opacity="0.55" />
+        </Border.Effect>
+        <StackPanel Width="500" MaxHeight="560">
+            <TextBlock Text="识别结果" FontSize="15" FontWeight="SemiBold"
+                       Foreground="#FFF5F5F7" />
+            <TextBox x:Name="ResultBox" Margin="0,10,0,0" Height="380" IsReadOnly="True"
+                     Background="#FF2A2A2E" Foreground="#FFEDEDED" BorderThickness="0"
+                     FontSize="13" TextWrapping="Wrap" AcceptsReturn="True"
+                     VerticalScrollBarVisibility="Auto" Padding="8" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+                <Button Content="复制" Width="72" Height="30" FontSize="13"
+                        Style="{StaticResource ToolbarPrimaryButton}" Click="OnCopy" />
+                <Button Content="关闭" Width="72" Height="30" FontSize="13" Margin="8,0,0,0"
+                        Style="{StaticResource ToolbarActionButton}" Click="OnClose" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

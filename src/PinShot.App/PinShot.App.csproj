@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>PinShot</AssemblyName>
+    <RootNamespace>PinShot.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>AnyCPU;x64</Platforms>
+    <Version>0.1.0</Version>
+    <!-- WPF 需要 manifest 中的 PerMonitorV2 设置；WinForms 分析器建议改用项目属性，此处保留 manifest -->
+    <NoWarn>$(NoWarn);WFAC010;NU1903;NU1902</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    同时启用 WPF 与 WinForms 时，SDK 会为 WinForms 注入 System.Windows.Forms / System.Drawing
+    的隐式 using，导致 Application、Point、MouseEventArgs 等与 WPF 同名类型冲突。
+    这里移除这两个隐式 using，需要时在文件内显式引入。
+  -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SharpAvi" Version="3.0.1" />
+  </ItemGroup>
+
+
+  <!-- 精简 OCR 输出：删除不使用的语言/表格模型，保留中文 v6_small -->
+  <Target Name="TrimOcrArtifacts" AfterTargets="Build">
+    <ItemGroup>
+      <OcrTrimFiles Include="$(OutDir)inference\PP-OCRv6_tiny_det_infer\**" />
+      <OcrTrimFiles Include="$(OutDir)inference\PP-OCRv6_tiny_rec_infer\**" />
+      <OcrTrimFiles Include="$(OutDir)inference\en_PP-OCRv5_mobile_rec_infer\**" />
+      <OcrTrimFiles Include="$(OutDir)inference\SLANet_infer\**" />
+    </ItemGroup>
+    <Delete Files="@(OcrTrimFiles)" />
+    <RemoveDir Directories="$(OutDir)inference\PP-OCRv6_tiny_det_infer;$(OutDir)inference\PP-OCRv6_tiny_rec_infer;$(OutDir)inference\en_PP-OCRv5_mobile_rec_infer;$(OutDir)inference\SLANet_infer" />
+  </Target>
+
+</Project>

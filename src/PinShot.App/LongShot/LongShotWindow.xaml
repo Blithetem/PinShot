@@ -1,0 +1,29 @@
+<Window x:Class="PinShot.App.LongShot.LongShotWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ShowInTaskbar="False" Topmost="True" ResizeMode="NoResize"
+        WindowStartupLocation="Manual" Cursor="Arrow" Focusable="True">
+    <Grid>
+        <Canvas x:Name="MaskCanvas" IsHitTestVisible="False">
+            <Path x:Name="MaskPath" Fill="#88000000" />
+            <Rectangle x:Name="BorderRect" Stroke="#FF2D8CFF" StrokeThickness="2"
+                       Visibility="Collapsed" />
+        </Canvas>
+
+        <Canvas IsHitTestVisible="False">
+            <Image x:Name="PreviewImage" Stretch="Fill" />
+            <Border x:Name="InfoBar" Style="{StaticResource HintBorder}"
+                    HorizontalAlignment="Left" VerticalAlignment="Top">
+                <TextBlock x:Name="InfoText" Foreground="#FFF0F0F0" FontFamily="Consolas"
+                           FontSize="12" />
+            </Border>
+        </Canvas>
+
+        <Border Style="{StaticResource HintBorder}" HorizontalAlignment="Center"
+                VerticalAlignment="Bottom" Margin="0,0,0,28">
+            <TextBlock Foreground="#FFDADADA" FontSize="12"
+                       Text="滚动页面收集内容 · Enter 完成 · Esc 取消" />
+        </Border>
+    </Grid>
+</Window>

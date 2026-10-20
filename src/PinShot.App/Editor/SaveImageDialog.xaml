@@ -1,0 +1,80 @@
+<Window x:Class="PinShot.App.Editor.SaveImageDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        SizeToContent="WidthAndHeight" WindowStartupLocation="CenterScreen"
+        ShowInTaskbar="False" Topmost="True" ResizeMode="NoResize" Focusable="True">
+    <Window.Resources>
+        <Style x:Key="DialogButton" TargetType="Button" BasedOn="{StaticResource ToolbarActionButton}">
+            <Setter Property="Width" Value="72" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Margin" Value="6,0,0,0" />
+        </Style>
+        <Style x:Key="DialogPrimaryButton" TargetType="Button" BasedOn="{StaticResource DialogButton}">
+            <Setter Property="Background" Value="{StaticResource ToolbarActiveBrush}" />
+        </Style>
+        <Style x:Key="DialogLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#FFC9C9CF" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </Window.Resources>
+
+    <Border Background="{StaticResource ToolbarBackgroundBrush}" CornerRadius="12" Padding="22,20">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="24" ShadowDepth="4" Direction="270" Opacity="0.55" />
+        </Border.Effect>
+        <StackPanel Width="440">
+            <TextBlock Text="保存图片" FontSize="16" FontWeight="SemiBold"
+                       Foreground="#FFF5F5F7" />
+
+            <Grid Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="64" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="格式" Style="{StaticResource DialogLabel}" />
+                <ComboBox x:Name="FormatBox" Grid.Column="1" Height="28" FontSize="13"
+                          SelectionChanged="OnFormatChanged">
+                    <ComboBoxItem Content="PNG" IsSelected="True" />
+                    <ComboBoxItem Content="JPEG" />
+                    <ComboBoxItem Content="BMP" />
+                </ComboBox>
+            </Grid>
+
+            <Grid x:Name="QualityRow" Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="64" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="质量" Style="{StaticResource DialogLabel}" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Slider x:Name="QualitySlider" Width="230" Minimum="10" Maximum="100"
+                            Value="90" VerticalAlignment="Center"
+                            ValueChanged="OnQualityChanged" />
+                    <TextBlock x:Name="QualityText" Text="90" Foreground="#FFE8E8EC"
+                               FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+
+            <Grid Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="PathBox" Height="28" FontSize="13" IsReadOnly="True"
+                         Background="#FF2A2A2E" Foreground="#FFEDEDED" BorderThickness="0"
+                         Padding="8,0" VerticalContentAlignment="Center" />
+                <Button Content="浏览" Grid.Column="1" Width="64" Height="28" FontSize="13"
+                        Margin="8,0,0,0" Style="{StaticResource ToolbarActionButton}"
+                        Click="OnBrowse" />
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+                <Button Content="取消" Style="{StaticResource DialogButton}" Click="OnCancel" />
+                <Button Content="保存" Style="{StaticResource DialogPrimaryButton}" Click="OnSave" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

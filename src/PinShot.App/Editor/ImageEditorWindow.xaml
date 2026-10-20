@@ -1,0 +1,27 @@
+<Window x:Class="PinShot.App.Editor.ImageEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ShowInTaskbar="False" Topmost="True" ResizeMode="NoResize" Focusable="True">
+    <Grid Background="#F01B1B1F">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto" Margin="8,8,8,0">
+            <Canvas x:Name="EditorCanvas">
+                <Image x:Name="BackgroundImage" Stretch="None"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" />
+            </Canvas>
+        </ScrollViewer>
+
+        <Grid Grid.Row="1" Margin="12,8,12,10">
+            <Border HorizontalAlignment="Center"
+                    MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Grid}}">
+                <ContentControl x:Name="ToolbarHost" />
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

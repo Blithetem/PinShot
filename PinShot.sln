@@ -1,0 +1,27 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{CDED2464-C3CB-490D-A9D4-2FCDDB6E1817}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PinShot.App", "src\PinShot.App\PinShot.App.csproj", "{F946A0C4-4AAB-4216-986F-ECA62EB8BF3A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F946A0C4-4AAB-4216-986F-ECA62EB8BF3A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F946A0C4-4AAB-4216-986F-ECA62EB8BF3A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F946A0C4-4AAB-4216-986F-ECA62EB8BF3A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F946A0C4-4AAB-4216-986F-ECA62EB8BF3A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{F946A0C4-4AAB-4216-986F-ECA62EB8BF3A} = {CDED2464-C3CB-490D-A9D4-2FCDDB6E1817}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,105 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 调色板 -->
+    <SolidColorBrush x:Key="ToolbarBackgroundBrush" Color="#F21C1C1F" />
+    <SolidColorBrush x:Key="ToolbarForegroundBrush" Color="#FFEDEDED" />
+    <SolidColorBrush x:Key="ToolbarHoverBrush" Color="#2EFFFFFF" />
+    <SolidColorBrush x:Key="ToolbarPressedBrush" Color="#4DFFFFFF" />
+    <SolidColorBrush x:Key="ToolbarActiveBrush" Color="#FF2D8CFF" />
+    <SolidColorBrush x:Key="ToolbarDividerBrush" Color="#22FFFFFF" />
+    <SolidColorBrush x:Key="HintBackgroundBrush" Color="#E01A1A1C" />
+
+    <!-- 工具栏按钮：圆角 + hover/按下/选中 -->
+    <Style x:Key="ToolbarButton" TargetType="Button">
+        <Setter Property="Foreground" Value="{StaticResource ToolbarForegroundBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Width" Value="28" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Margin" Value="1,0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="6"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background"
+                                    Value="{StaticResource ToolbarHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background"
+                                    Value="{StaticResource ToolbarPressedBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.3" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 完成动作按钮：文字按钮 -->
+    <Style x:Key="ToolbarActionButton" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
+        <Setter Property="Width" Value="44" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <!-- 主动作（复制）：高亮底色 -->
+    <Style x:Key="ToolbarPrimaryButton" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
+        <Setter Property="Width" Value="44" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Background" Value="{StaticResource ToolbarActiveBrush}" />
+    </Style>
+
+    <!-- 颜色圆点 -->
+    <Style x:Key="ColorSwatchButton" TargetType="Button">
+        <Setter Property="Width" Value="20" />
+        <Setter Property="Height" Value="22" />
+        <Setter Property="Margin" Value="1,0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Ellipse x:Name="Ring" Width="20" Height="20"
+                                 Stroke="Transparent" StrokeThickness="2" />
+                        <Ellipse Width="13" Height="13" Fill="{TemplateBinding Background}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Ring" Property="Stroke" Value="#66FFFFFF" />
+                        </Trigger>
+                        <Trigger Property="Tag" Value="selected">
+                            <Setter TargetName="Ring" Property="Stroke" Value="White" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 线宽按钮 -->
+    <Style x:Key="ThicknessButton" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
+        <Setter Property="Width" Value="24" />
+        <Setter Property="Height" Value="26" />
+    </Style>
+
+    <!-- 提示胶囊 -->
+    <Style x:Key="HintBorder" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource HintBackgroundBrush}" />
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="Padding" Value="14,6" />
+    </Style>
+
+</ResourceDictionary>

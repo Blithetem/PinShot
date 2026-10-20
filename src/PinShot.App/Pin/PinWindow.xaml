@@ -1,0 +1,34 @@
+<Window x:Class="PinShot.App.Pin.PinWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ShowInTaskbar="False" Topmost="True" ResizeMode="NoResize"
+        WindowStartupLocation="Manual" UseLayoutRounding="True"
+        SnapsToDevicePixels="True" Focusable="True" ShowActivated="True">
+    <Grid x:Name="RootGrid" Background="Transparent">
+        <Border x:Name="Frame" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="2">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="18" ShadowDepth="3" Direction="270" Opacity="0.5" />
+            </Border.Effect>
+            <Grid ClipToBounds="True">
+                <Image x:Name="PinImage" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
+
+                <!-- 标注层由代码在进入标注模式时加入 -->
+                <Grid x:Name="AnnotationHost" Background="Transparent" Visibility="Collapsed" />
+
+                <Border x:Name="TitleBar" VerticalAlignment="Bottom" HorizontalAlignment="Stretch"
+                        Background="#B3000000" Padding="8,3" Visibility="Collapsed"
+                        IsHitTestVisible="False">
+                    <TextBlock x:Name="TitleText" Foreground="#FFFFFF" FontSize="12"
+                               TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" />
+                </Border>
+
+                <Border x:Name="BadgeHost" VerticalAlignment="Bottom" HorizontalAlignment="Left"
+                        Margin="8" Background="#B3000000" CornerRadius="4" Padding="6,2"
+                        Visibility="Collapsed" IsHitTestVisible="False">
+                    <TextBlock x:Name="BadgeText" Foreground="#FFFFFF" FontSize="12" />
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

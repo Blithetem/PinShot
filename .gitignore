@@ -1,0 +1,27 @@
+## Build results
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+
+## Publish output
+publish/
+artifacts/
+
+## OS
+Thumbs.db
+desktop.ini
+
+## 开发过程产物（截图含本机桌面内容，不纳入版本库）
+docs/*
+!docs/ARCHITECTURE.md
+*.log
+*.selftest.txt
+
+## 本地配置与日志
+ocr.json
+pin.json
+pin-history/
+selection.json

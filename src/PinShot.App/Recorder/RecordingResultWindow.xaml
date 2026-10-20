@@ -1,0 +1,73 @@
+<Window x:Class="PinShot.App.Recorder.RecordingResultWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        SizeToContent="WidthAndHeight" WindowStartupLocation="CenterScreen"
+        ShowInTaskbar="False" Topmost="True" ResizeMode="NoResize" Focusable="True">
+    <Window.Resources>
+        <Style x:Key="ResultButton" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
+            <Setter Property="Width" Value="68" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Margin" Value="4,0" />
+        </Style>
+        <Style x:Key="ResultPrimaryButton" TargetType="Button"
+               BasedOn="{StaticResource ResultButton}">
+            <Setter Property="Background" Value="{StaticResource ToolbarActiveBrush}" />
+        </Style>
+        <Style x:Key="GroupLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#FF8E8E96" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+        </Style>
+    </Window.Resources>
+
+    <Border Background="{StaticResource ToolbarBackgroundBrush}" CornerRadius="14"
+            Padding="26,20">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="28" ShadowDepth="4" Direction="270" Opacity="0.55" />
+        </Border.Effect>
+        <StackPanel MinWidth="460">
+            <StackPanel Orientation="Horizontal">
+                <Ellipse Width="10" Height="10" Fill="#FFFF3B30" Margin="0,0,10,0"
+                         VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleText" Text="录制完成" FontSize="17" FontWeight="SemiBold"
+                           Foreground="#FFF7F7F8" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <TextBlock x:Name="InfoText" FontSize="13" Foreground="#FFCFCFD6"
+                       Margin="0,10,0,0" TextWrapping="Wrap" />
+
+            <Border Height="1" Background="{StaticResource ToolbarDividerBrush}" Margin="0,18" />
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="视频" Style="{StaticResource GroupLabel}" />
+                    <Button x:Name="SaveVideoButton" Content="保存"
+                            Style="{StaticResource ResultPrimaryButton}" />
+                    <Button x:Name="CopyVideoButton" Content="复制"
+                            Style="{StaticResource ResultButton}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="22,0,0,0">
+                    <TextBlock Text="GIF" Style="{StaticResource GroupLabel}" />
+                    <Button x:Name="SaveGifButton" Content="保存"
+                            Style="{StaticResource ResultButton}" />
+                    <Button x:Name="CopyGifButton" Content="复制"
+                            Style="{StaticResource ResultButton}" />
+                </StackPanel>
+
+                <Button Grid.Column="2" x:Name="CloseButton" Content="关闭"
+                        Style="{StaticResource ResultButton}" HorizontalAlignment="Right"
+                        Margin="22,0,0,0" />
+            </Grid>
+        </StackPanel>
+    </Border>
+</Window>
