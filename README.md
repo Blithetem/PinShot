@@ -176,4 +176,4 @@ tools/verify-core.ps1  命令行回归
 
 ## 许可
 
-代码采用 MIT。
+代码采用 [MIT](LICENSE)。
