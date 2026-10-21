@@ -40,6 +40,13 @@ public sealed class AppSettings
     /// <summary>长截图最大高度像素。</summary>
     public int LongShotMaxHeight { get; set; } = 12000;
 
+    // ---- 录制 ----
+    /// <summary>录制后是否用 ffmpeg 转成 MP4（体积约为 AVI 的十分之一）。</summary>
+    public bool ConvertRecordingToMp4 { get; set; } = true;
+
+    /// <summary>ffmpeg.exe 路径；空表示自动在 PATH 和常见目录里找。</summary>
+    public string FfmpegPath { get; set; } = string.Empty;
+
     /// <summary>当前生效的配置实例。</summary>
     public static AppSettings Current { get; private set; } = new();
 

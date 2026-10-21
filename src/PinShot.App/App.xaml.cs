@@ -1126,7 +1126,40 @@ public partial class App : Application
             return;
         }
 
-        // 弹出结果操作条：保存/复制视频，或转 GIF 保存/复制
+        // 弹出结果操作条：保存/复制视频，或转 GIF 保存/复制。
+        // 有 ffmpeg 时先把它转成 MP4，体积约为 AVI 的十分之一。
+        var gifFramesSnapshot = gifFrames;
+        var durationSnapshot = duration;
+        var widthSnapshot = width;
+        var heightSnapshot = height;
+        var aviPath = tempPath;
+
+        if (AppSettings.Current.ConvertRecordingToMp4 && VideoTranscoder.IsAvailable)
+        {
+            ShowToast("正在压缩视频", "转换为 MP4，请稍候");
+
+            _ = Task.Run(() =>
+            {
+                var mp4 = VideoTranscoder.TryConvertToMp4(aviPath);
+                var finalPath = mp4 ?? aviPath;
+
+                Dispatcher.Invoke(() =>
+                {
+                    if (mp4 is not null)
+                    {
+                        WriteInfo($"录制转码: {Path.GetFileName(aviPath)} -> " +
+                                  $"{Path.GetFileName(mp4)}（{new FileInfo(mp4).Length / 1024.0 / 1024.0:N2} MB）");
+                    }
+
+                    var window = new RecordingResultWindow(finalPath, gifFramesSnapshot,
+                        durationSnapshot, widthSnapshot, heightSnapshot);
+                    window.Show();
+                });
+            });
+
+            return;
+        }
+
         var resultWindow = new RecordingResultWindow(tempPath, gifFrames, duration, width, height);
         resultWindow.Show();
     }
@@ -1910,8 +1943,8 @@ public partial class App : Application
 
                 if (failure is null && File.Exists(path))
                 {
-                    WriteLog("RecordSelfTest", new InvalidOperationException(
-                        $"录制成功: {new FileInfo(path).Length} bytes, 路径 {path}"));
+                    var size = new FileInfo(path).Length;
+                    WriteInfo($"录制自检: {size} bytes（{size / 1024.0 / 1024.0:N2} MB），路径 {path}");
                 }
                 else
                 {

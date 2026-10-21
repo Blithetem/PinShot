@@ -22,17 +22,18 @@ public sealed class ScreenRecorder : IDisposable
     [DllImport("dwmapi.dll")]
     private static extern int DwmFlush();
 
-    // GIF 帧参数：宽度上限越大越清晰，但内存占用也越高。
-    // 1280 宽时单帧约 3.7MB，180 帧约 660MB，对 16GB 机器可接受。
-    private const int GifMaxWidth = 1280;
+    // GIF 帧参数：宽度上限越大越清晰，但体积和内存也越高。
+    // 720 宽在聊天窗口里够清晰，体积约为 1280 宽的三分之一。
+    private const int GifMaxWidth = 720;
     private const int GifMaxFrames = 180;
-    private const int GifFps = 10;
+    private const int GifFps = 8;
 
     private readonly Rectangle _area;
     private readonly int _fps;
     private readonly int _quality;
     private readonly int _frameBytes;
-    private readonly int _gifEveryNthFrame;
+    private readonly double _gifEveryNthFrame;
+    private double _gifAccumulator;
     private readonly List<BitmapSource> _gifFrames = new();
     private readonly object _gifLock = new();
 
@@ -41,7 +42,10 @@ public sealed class ScreenRecorder : IDisposable
     private bool _disposed;
     private int _frameIndex;
 
-    public ScreenRecorder(Rectangle area, int fps = 30, int quality = 80)
+    /// <param name="area">录制区域。</param>
+    /// <param name="fps">帧率；12fps 对屏幕操作演示足够，体积约为 30fps 的三分之一。</param>
+    /// <param name="quality">JPEG 质量；65 能保持文字可读，体积明显小于 80。</param>
+    public ScreenRecorder(Rectangle area, int fps = 12, int quality = 65)
     {
         if (area.Width < 2 || area.Height < 2)
         {
@@ -61,8 +65,9 @@ public sealed class ScreenRecorder : IDisposable
         _fps = Math.Clamp(fps, 5, 60);
         _quality = Math.Clamp(quality, 20, 95);
         _frameBytes = _area.Width * _area.Height * 4;
-        _gifEveryNthFrame = Math.Max(1, _fps / GifFps);
 
+        // 用浮点步进，避免 fps(12) 除 GifFps(8) 取整成 1 导致 GIF 实际帧率不对
+        _gifEveryNthFrame = Math.Max(1.0, _fps / (double)GifFps);
     }
 
     public string? OutputPath { get; private set; }
@@ -152,8 +157,10 @@ public sealed class ScreenRecorder : IDisposable
                 stream.WriteFrame(true, frame, 0, _frameBytes);
 
                 _frameIndex++;
-                if (_frameIndex % _gifEveryNthFrame == 0)
+                _gifAccumulator += 1.0;
+                if (_gifAccumulator >= _gifEveryNthFrame)
                 {
+                    _gifAccumulator -= _gifEveryNthFrame;
                     CollectGifFrame(frame);
                 }
 

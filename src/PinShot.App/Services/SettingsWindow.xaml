@@ -165,6 +165,31 @@
                         </Grid>
                     </StackPanel>
                 </Border>
+
+                <!-- 录制 -->
+                <Border Style="{StaticResource SectionBorder}">
+                    <StackPanel>
+                        <TextBlock Text="录制" Style="{StaticResource SectionTitle}" />
+                        <CheckBox x:Name="Mp4Check" Content="录制后转成 MP4（体积约为 AVI 的 1/10）"
+                                  Margin="0,0,0,4" />
+                        <TextBlock Text="需要 ffmpeg；找不到时保持 AVI。" FontSize="11"
+                                   Foreground="#FF8A8A92" Margin="0,0,0,8" />
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="ffmpeg 路径" Style="{StaticResource FieldLabel}" />
+                            <TextBox x:Name="FfmpegBox" Grid.Column="1" />
+                            <Button Grid.Column="2" Content="浏览" Width="56" Margin="8,0,0,0"
+                                    Style="{StaticResource ToolbarActionButton}" Click="OnBrowseFfmpeg" />
+                        </Grid>
+                        <TextBlock x:Name="FfmpegStatusText" FontSize="11" Foreground="#FF8A8A92"
+                                   Margin="0,6,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
 

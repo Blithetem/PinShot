@@ -39,6 +39,10 @@ public partial class SettingsWindow : Window
         QualityText.Text = settings.JpegQuality.ToString();
         CursorCheck.IsChecked = settings.CaptureWithCursor;
         SelectCorner(settings.DefaultCornerRadius);
+
+        Mp4Check.IsChecked = settings.ConvertRecordingToMp4;
+        FfmpegBox.Text = settings.FfmpegPath ?? string.Empty;
+        UpdateFfmpegStatus();
         UpdateQualityVisibility();
     }
 
@@ -141,6 +145,41 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void OnBrowseFfmpeg(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "选择 ffmpeg.exe",
+            Filter = "ffmpeg|ffmpeg.exe|可执行文件|*.exe",
+            CheckFileExists = true,
+        };
+
+        if (dialog.ShowDialog(this) == true)
+        {
+            FfmpegBox.Text = dialog.FileName;
+            UpdateFfmpegStatus();
+        }
+    }
+
+    private void UpdateFfmpegStatus()
+    {
+        if (FfmpegStatusText is null)
+        {
+            return;
+        }
+
+        var configured = FfmpegBox.Text?.Trim() ?? string.Empty;
+        if (!string.IsNullOrEmpty(configured) && File.Exists(configured))
+        {
+            FfmpegStatusText.Text = "已指定路径，录制结束后会自动转 MP4。";
+            return;
+        }
+
+        FfmpegStatusText.Text = Recorder.VideoTranscoder.IsAvailable
+            ? "已自动检测到 ffmpeg，录制结束后会自动转 MP4。"
+            : "没找到 ffmpeg：录制会保持 AVI（体积较大）。可以手动指定路径。";
+    }
+
     private void OnResetDefaults(object sender, RoutedEventArgs e)
     {
         if (MessageBox.Show(this, "恢复所有设置为默认值？", "PinShot",
@@ -192,6 +231,9 @@ public partial class SettingsWindow : Window
             3 => 24,
             _ => 0,
         };
+
+        _settings.ConvertRecordingToMp4 = Mp4Check.IsChecked == true;
+        _settings.FfmpegPath = FfmpegBox.Text?.Trim() ?? string.Empty;
 
         _settings.Save();
         Result = _settings;

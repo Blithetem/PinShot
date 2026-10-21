@@ -32,7 +32,7 @@ public sealed class GifRecorder : IDisposable
     private volatile bool _running;
     private bool _disposed;
 
-    public GifRecorder(Rectangle area, int fps = 10, int maxFrames = 240, int maxWidth = 1280)
+    public GifRecorder(Rectangle area, int fps = 8, int maxFrames = 240, int maxWidth = 720)
     {
         if (area.Width < 4 || area.Height < 4)
         {
