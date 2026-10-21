@@ -13,7 +13,8 @@ public sealed record TrayActions(
     Action? CloseAllPins = null,
     Action? DestroyAllPins = null,
     Action? BringPinsOnScreen = null,
-    Action? Settings = null);
+    Action? Settings = null,
+    Action? CheckUpdate = null);
 
 /// <summary>托盘图标与右键菜单。程序本身没有主窗口，所有入口都在这里和全局热键。</summary>
 public sealed class TrayService : IDisposable
@@ -42,6 +43,11 @@ public sealed class TrayService : IDisposable
         if (actions.Settings is not null)
         {
             menu.Items.Add("设置...", null, (_, _) => actions.Settings());
+        }
+
+        if (actions.CheckUpdate is not null)
+        {
+            menu.Items.Add("检查更新", null, (_, _) => actions.CheckUpdate());
         }
 
         menu.Items.Add("退出", null, (_, _) => actions.Exit());

@@ -126,6 +126,20 @@ public partial class App : Application
             return;
         }
 
+        // 自检入口：只检查更新，不下载
+        if (e.Args.Contains("--check-update", StringComparer.OrdinalIgnoreCase))
+        {
+            RunCheckUpdateSelfTest();
+            return;
+        }
+
+        // 自检入口：直接下载并应用更新（验证替换流程）
+        if (e.Args.Contains("--update-now", StringComparer.OrdinalIgnoreCase))
+        {
+            RunUpdateNowSelfTest();
+            return;
+        }
+
         // 自检入口：贴图管理（生命周期 / 历史 / 分组 / 图像处理）
         if (e.Args.Contains("--pin-manager-test", StringComparer.OrdinalIgnoreCase))
         {
@@ -222,9 +236,19 @@ public partial class App : Application
 
         _tray = new TrayService(hotkeyDisplay, recordHotkeyDisplay,
             new TrayActions(BeginCapture, BeginLongShot, BeginGif, BeginRecord, ExitApplication,
-                CloseAllPins, DestroyAllPins, BringPinsOnScreen, OpenSettings));
+                CloseAllPins, DestroyAllPins, BringPinsOnScreen, OpenSettings,
+                () => CheckForUpdates(silent: false)));
 
         StartActivateListener();
+
+        // 启动 8 秒后静默检查一次更新，不打扰用户
+        var updateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(8) };
+        updateTimer.Tick += (_, _) =>
+        {
+            updateTimer.Stop();
+            CheckForUpdates(silent: true);
+        };
+        updateTimer.Start();
         ShowToast("PinShot 已启动",
             $"截图 {hotkeyDisplay} · 录屏 {recordHotkeyDisplay} · 托盘菜单有长截图 / GIF");
 
@@ -601,6 +625,58 @@ public partial class App : Application
         catch (Exception ex)
         {
             WriteLog("RestoreLastPin", ex);
+        }
+    }
+
+    /// <summary>检查更新；silent=true 时只在有新版本才提示。</summary>
+    private async void CheckForUpdates(bool silent)
+    {
+        try
+        {
+            var manifest = await UpdateService.CheckAsync();
+
+            if (manifest is null)
+            {
+                if (!silent)
+                {
+                    ShowToast("已是最新版本", $"当前版本 {UpdateService.CurrentVersion}");
+                }
+
+                return;
+            }
+
+            var message = $"发现新版本 {manifest.Version}（当前 {UpdateService.CurrentVersion}）";
+
+            if (!string.IsNullOrWhiteSpace(manifest.Notes))
+            {
+                message += "\n\n" + manifest.Notes;
+            }
+
+            message += "\n\n是否立即更新？程序会自动下载并重启。";
+
+            if (MessageBox.Show(message, "PinShot 更新", MessageBoxButton.YesNo,
+                    MessageBoxImage.Question) != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            ShowToast("正在下载更新", $"{manifest.Version} · 请稍候");
+
+            var newExe = await UpdateService.DownloadAsync(manifest);
+            WriteInfo($"更新: 已下载 {manifest.Version} -> {newExe}，准备重启替换");
+
+            UpdateService.Apply(newExe);
+            ExitApplication();
+        }
+        catch (Exception ex)
+        {
+            WriteLog("CheckForUpdates", ex);
+
+            if (!silent)
+            {
+                MessageBox.Show($"更新失败：{ex.Message}", "PinShot", MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
         }
     }
 
@@ -1237,6 +1313,61 @@ public partial class App : Application
             WriteLog("ToolbarOptionsSelfTest", ex);
             Shutdown();
         }
+    }
+
+    /// <summary>自检：检查更新（不下载）。</summary>
+    private void RunCheckUpdateSelfTest()
+    {
+        try
+        {
+            // 必须在后台线程跑：UI 线程同步等待 async 会死锁
+            var manifest = Task.Run(() => UpdateService.CheckAsync()).GetAwaiter().GetResult();
+
+            if (manifest is null)
+            {
+                WriteInfo($"更新检查: 当前 {UpdateService.CurrentVersion}，已是最新");
+            }
+            else
+            {
+                WriteInfo($"更新检查: 当前 {UpdateService.CurrentVersion} -> 发现新版本 " +
+                          $"{manifest.Version}（{manifest.File}，{manifest.Size / 1024.0 / 1024.0:N1} MB）");
+            }
+        }
+        catch (Exception ex)
+        {
+            WriteLog("CheckUpdateSelfTest", ex);
+        }
+
+        Shutdown();
+    }
+
+    /// <summary>自检：下载并应用更新，验证替换脚本能跑通。</summary>
+    private void RunUpdateNowSelfTest()
+    {
+        try
+        {
+            var manifest = Task.Run(() => UpdateService.CheckAsync()).GetAwaiter().GetResult();
+
+            if (manifest is null)
+            {
+                WriteInfo($"更新: 当前 {UpdateService.CurrentVersion} 已是最新，无需更新");
+                Shutdown();
+                return;
+            }
+
+            WriteInfo($"更新: 发现 {manifest.Version}，开始下载");
+            var path = Task.Run(() => UpdateService.DownloadAsync(manifest)).GetAwaiter().GetResult();
+            WriteInfo($"更新: 下载完成 {path}，启动替换脚本");
+
+            UpdateService.Apply(path);
+            WriteInfo("更新: 替换脚本已启动，主进程退出");
+        }
+        catch (Exception ex)
+        {
+            WriteLog("UpdateNowSelfTest", ex);
+        }
+
+        Shutdown();
     }
 
     /// <summary>自检：标签标注渲染（背景色、自动黑白文字、圆角）。</summary>

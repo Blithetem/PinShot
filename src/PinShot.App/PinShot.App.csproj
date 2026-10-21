@@ -2,8 +2,8 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <!-- 不指定 Windows SDK 版本：避免引入 23.5 MB 的 WinRT 投影。
-         需要 WinRT 的 OCR 能力做成可选插件，见 src\PinShot.Ocr.WinRt。 -->
+    <!-- 不指�?Windows SDK 版本：避免引�?23.5 MB �?WinRT 投影�?
+         需�?WinRT �?OCR 能力做成可选插件，�?src\PinShot.Ocr.WinRt�?-->
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
@@ -13,16 +13,16 @@
     <RootNamespace>PinShot.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>AnyCPU;x64</Platforms>
-    <Version>0.1.0</Version>
-    <!-- 自定义入口：先走不依赖 WPF 的 CLI 快速路径（App.xaml 因此改为 Page） -->
+    <Version>0.1.2</Version>
+    <!-- 自定义入口：先走不依�?WPF �?CLI 快速路径（App.xaml 因此改为 Page�?-->
     <StartupObject>PinShot.App.Program</StartupObject>
-    <!-- WPF 需要 manifest 中的 PerMonitorV2 设置；WinForms 分析器建议改用项目属性，此处保留 manifest -->
+    <!-- WPF 需�?manifest 中的 PerMonitorV2 设置；WinForms 分析器建议改用项目属性，此处保留 manifest -->
     <NoWarn>$(NoWarn);WFAC010;NU1903;NU1902</NoWarn>
   </PropertyGroup>
 
   <!--
-    App.xaml 默认作为 ApplicationDefinition 会由 XAML 编译器生成 Main，
-    与自定义 Program.Main 冲突，所以改成普通 Page（只生成 InitializeComponent）。
+    App.xaml 默认作为 ApplicationDefinition 会由 XAML 编译器生�?Main�?
+    与自定义 Program.Main 冲突，所以改成普�?Page（只生成 InitializeComponent）�?
   -->
   <ItemGroup>
     <ApplicationDefinition Remove="App.xaml" />
@@ -30,9 +30,9 @@
   </ItemGroup>
 
   <!--
-    同时启用 WPF 与 WinForms 时，SDK 会为 WinForms 注入 System.Windows.Forms / System.Drawing
-    的隐式 using，导致 Application、Point、MouseEventArgs 等与 WPF 同名类型冲突。
-    这里移除这两个隐式 using，需要时在文件内显式引入。
+    同时启用 WPF �?WinForms 时，SDK 会为 WinForms 注入 System.Windows.Forms / System.Drawing
+    的隐�?using，导�?Application、Point、MouseEventArgs 等与 WPF 同名类型冲突�?
+    这里移除这两个隐�?using，需要时在文件内显式引入�?
   -->
   <ItemGroup>
     <Using Remove="System.Windows.Forms" />
@@ -42,14 +42,14 @@
     <PackageReference Include="SharpAvi" Version="3.0.1" />
   </ItemGroup>
 
-  <!-- OCR 插件契约（极小）；WinRT 实现在可选插件项目里，主程序不引用 -->
+  <!-- OCR 插件契约（极小）；WinRT 实现在可选插件项目里，主程序不引�?-->
   <ItemGroup>
     <ProjectReference Include="..\PinShot.Ocr.Abstractions\PinShot.Ocr.Abstractions.csproj" />
   </ItemGroup>
 
   <!--
-    单文件分发用：打包脚本先把 ocr-plugin 压成 OcrPayload.zip 放到项目目录，
-    这里条件嵌入；普通构建时文件不存在则跳过，主程序保持精简。
+    单文件分发用：打包脚本先�?ocr-plugin 压成 OcrPayload.zip 放到项目目录�?
+    这里条件嵌入；普通构建时文件不存在则跳过，主程序保持精简�?
   -->
   <ItemGroup Condition="Exists('OcrPayload.zip')">
     <EmbeddedResource Include="OcrPayload.zip">
