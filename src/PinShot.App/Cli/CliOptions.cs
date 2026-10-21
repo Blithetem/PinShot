@@ -25,6 +25,9 @@ public sealed class CliOptions
     /// <summary>--region 指定的截图区域（x,y,width,height，物理像素）。</summary>
     public (int X, int Y, int Width, int Height)? Region { get; private init; }
 
+    /// <summary>--auto-demo：交互式截图自动框选并复制，用于验证命令行退出流程（测试用）。</summary>
+    public bool AutoDemo { get; private init; }
+
     public static CliOptions Parse(string[] args)
     {
         if (args.Length == 0)
@@ -38,6 +41,7 @@ public sealed class CliOptions
         var clipboard = false;
         var delay = 0;
         (int, int, int, int)? region = null;
+        var autoDemo = false;
 
         for (var index = 0; index < args.Length; index++)
         {
@@ -87,6 +91,10 @@ public sealed class CliOptions
                 case "--region":
                     region = ParseRegion(NextValue(args, ref index));
                     break;
+
+                case "--auto-demo":
+                    autoDemo = true;
+                    break;
             }
         }
 
@@ -98,6 +106,7 @@ public sealed class CliOptions
             Clipboard = clipboard,
             DelayMs = delay,
             Region = region,
+            AutoDemo = autoDemo,
         };
     }
 

@@ -129,12 +129,14 @@ public static class CliRunner
 
             overlay.Completed += result =>
             {
+                Log($"overlay completed: {(result is null ? "null" : result.Action.ToString())}");
+
                 try
                 {
                     if (result is null)
                     {
                         WriteLine("cancelled");
-                        app.Shutdown(2);
+                        ExitLater(app, 2);
                         return;
                     }
 
@@ -146,16 +148,20 @@ public static class CliRunner
                     WriteLine($"error: {ex.Message}");
                 }
 
-                app.Shutdown(0);
+                ExitLater(app, 0);
             };
+
+            if (options.AutoDemo)
+            {
+                ScheduleAutoDemo(overlay, snapshot);
+            }
 
             overlay.Show();
         }
         catch (Exception ex)
         {
             WriteLine($"error: {ex.Message}");
-            app.Shutdown(1);
-        }
+            app.Shutdown(1);        }
     }
 
     /// <summary>
@@ -202,6 +208,76 @@ public static class CliRunner
                 WriteLine("pinned");
                 break;
         }
+    }
+
+    /// <summary>
+    /// 延后到当前事件处理结束再退出进程。
+    /// 如果在 Completed 回调里直接 Shutdown，截图窗口的 Close() 会在关闭流程中被调用，
+    /// 容易留下未关闭的遮罩窗口或让进程挂住。
+    /// </summary>
+    private static void ExitLater(Application app, int exitCode)
+    {
+        Log($"shutdown scheduled exit={exitCode}");
+
+        app.Dispatcher.BeginInvoke(new Action(() =>
+        {
+            Log("shutdown now");
+            app.Shutdown(exitCode);
+        }), System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    /// <summary>诊断日志：排查命令行截图不退出等问题。</summary>
+    private static void Log(string message)
+    {
+        try
+        {
+            File.AppendAllText(
+                Path.Combine(Path.GetTempPath(), "pinshot-capture.log"),
+                $"{DateTime.Now:HH:mm:ss.fff} [cli] {message}\n");
+        }
+        catch
+        {
+            // 日志失败不影响主流程
+        }
+    }
+
+    /// <summary>
+    /// 测试用（--auto-demo）：模拟「框选 + 点复制」，用来验证命令行截图完成后进程是否退出。
+    /// </summary>
+    private static void ScheduleAutoDemo(CaptureOverlay overlay, BitmapSource snapshot)
+    {
+        Log("auto-demo: armed");
+
+        var timer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1.2),
+        };
+
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+
+            var width = Math.Min(600, snapshot.PixelWidth);
+            var height = Math.Min(400, snapshot.PixelHeight);
+            Log($"auto-demo: selecting {width}x{height}");
+            overlay.EnterEditWithSelection(new Int32Rect(100, 100, width, height));
+
+            var second = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(400),
+            };
+
+            second.Tick += (_, _) =>
+            {
+                second.Stop();
+                Log("auto-demo: completing with copy");
+                overlay.CompleteForTest();
+            };
+
+            second.Start();
+        };
+
+        timer.Start();
     }
 
     /// <summary>带 --region 时直接裁剪，不弹选区界面（供脚本 / 自动化调用）。</summary>

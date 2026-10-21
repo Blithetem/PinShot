@@ -289,6 +289,21 @@ public partial class CaptureOverlay : Window
 
         var position = e.GetPosition(this);
         var handle = HitTestHandle(position);
+        var insideSelection = ToDipRect(selection).Contains(position);
+
+        Log($"down click={e.ClickCount} tool={_currentTool} inside={insideSelection} handle={handle}");
+
+        // 选择模式下双击选区内部 = 直接复制（和工具栏「复制」按钮同一个动作）。
+        // 必须在 MouseDown 判定：MouseUp 上的 ClickCount 不可靠。
+        if (e.ClickCount >= 2 && _currentTool == EditorTool.None && insideSelection)
+        {
+            _activeHandle = Handle.None;
+            ReleaseMouseCapture();
+            e.Handled = true;
+            Log("double-click -> copy");
+            Complete(CaptureAction.Copy);
+            return;
+        }
 
         if (handle != Handle.None)
         {
@@ -298,17 +313,32 @@ public partial class CaptureOverlay : Window
         }
 
         // 「选择 / 移动」工具下，拖选区内部 = 整体挪动截图范围（对齐 PixPin）
-        if (_currentTool == EditorTool.None && ToDipRect(selection).Contains(position))
+        if (_currentTool == EditorTool.None && insideSelection)
         {
             BeginAdjust(Handle.Move, position);
             e.Handled = true;
             return;
         }
 
-        if (_spaceHeld && ToDipRect(selection).Contains(position))
+        if (_spaceHeld && insideSelection)
         {
             BeginAdjust(Handle.Move, position);
             e.Handled = true;
+        }
+    }
+
+    /// <summary>临时诊断日志：排查选区交互问题用。</summary>
+    private static void Log(string message)
+    {
+        try
+        {
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(System.IO.Path.GetTempPath(), "pinshot-capture.log"),
+                $"{DateTime.Now:HH:mm:ss.fff} {message}\n");
+        }
+        catch
+        {
+            // 日志失败不影响交互
         }
     }
 
@@ -377,15 +407,6 @@ public partial class CaptureOverlay : Window
             _activeHandle = Handle.None;
             ReleaseMouseCapture();
             e.Handled = true;
-
-            // 选择模式下双击选区 = 直接复制到剪贴板并关闭（对齐 PixPin）
-            if (e.ClickCount >= 2 && _currentTool == EditorTool.None &&
-                _selection is { } doubleClicked &&
-                ToDipRect(doubleClicked).Contains(e.GetPosition(this)))
-            {
-                Complete(CaptureAction.Copy);
-            }
-
             return;
         }
 
@@ -1449,6 +1470,9 @@ public partial class CaptureOverlay : Window
         return new Int32Rect(x, y, width, height);
     }
 
+    /// <summary>测试用：自动完成一次「复制」，用于验证命令行退出流程。</summary>
+    internal void CompleteForTest() => Complete(CaptureAction.Copy);
+
     private void Complete(CaptureAction action)
     {
         BitmapSource output;
@@ -1477,15 +1501,34 @@ public partial class CaptureOverlay : Window
 
         output = Decorate(output);
 
+        Log($"complete action={action} size={output.PixelWidth}x{output.PixelHeight}");
+
         Hide();
-        Completed?.Invoke(new CaptureResult(output, action));
-        Close();
+
+        // 无论回调里发生什么（包括调用方直接 Shutdown），都保证窗口关闭
+        try
+        {
+            Completed?.Invoke(new CaptureResult(output, action));
+        }
+        finally
+        {
+            Close();
+            Log("complete: window closed");
+        }
     }
 
     private void Cancel()
     {
+        Log("cancel");
         Hide();
-        Completed?.Invoke(null);
-        Close();
+
+        try
+        {
+            Completed?.Invoke(null);
+        }
+        finally
+        {
+            Close();
+        }
     }
 }
