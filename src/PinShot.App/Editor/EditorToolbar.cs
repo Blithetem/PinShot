@@ -102,6 +102,9 @@ public sealed class EditorToolbar : Border
             Margin = new Thickness(6, 0, 0, 0),
         };
 
+        // 「选择 / 移动」：不绘制，拖选区内部可以整体挪动截图范围（对齐 PixPin）
+        AddTool(drawGroup, EditorTool.None,
+            MakeIcon("M5,2 L5,17 L9,13 L12,19 L15,17 L12,11 L17,11 Z"), "选择 / 移动截图范围");
         AddTool(drawGroup, EditorTool.Rectangle, MakeIcon("M3,4 H17 V16 H3 Z"), "矩形 (Shift+1)");
         AddTool(drawGroup, EditorTool.Ellipse, MakeIcon("M10,3 A7,7 0 1 0 10,17 A7,7 0 1 0 10,3"), "椭圆 (Shift+2)");
         AddTool(drawGroup, EditorTool.Line, MakeIcon("M3,17 L17,3"), "直线 (Shift+3)");
@@ -190,7 +193,7 @@ public sealed class EditorToolbar : Border
         root.Children.Add(_optionsRow);
         Child = root;
 
-        SelectTool(EditorTool.Rectangle);
+        SelectTool(EditorTool.None);
         SelectColor(Palette[0]);
         SelectThickness(4);
         UpdateState(false, false);

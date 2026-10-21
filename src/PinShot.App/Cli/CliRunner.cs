@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using PinShot.App.Capture;
+using PinShot.App.Editor;
 using PinShot.App.Pin;
 using PinShot.App.Services;
 
@@ -137,7 +138,8 @@ public static class CliRunner
                         return;
                     }
 
-                    Deliver(result.Image, options);
+                    // 交互式截图：用户在界面里点的是哪个按钮，就执行哪个动作
+                    DeliverByAction(result, options);
                 }
                 catch (Exception ex)
                 {
@@ -153,6 +155,52 @@ public static class CliRunner
         {
             WriteLine($"error: {ex.Message}");
             app.Shutdown(1);
+        }
+    }
+
+    /// <summary>
+    /// 交互式截图完成后按用户实际点击的动作处理：
+    /// 复制 → 剪贴板；保存 → 指定路径或弹保存对话框；贴图 → 贴到屏幕。
+    /// </summary>
+    private static void DeliverByAction(CaptureResult result, CliOptions options)
+    {
+        var settings = AppSettings.Load();
+
+        switch (result.Action)
+        {
+            case CaptureAction.Copy:
+                Clipboard.SetImage(result.Image);
+                WriteLine("clipboard");
+                break;
+
+            case CaptureAction.Save:
+                if (!string.IsNullOrWhiteSpace(options.Output))
+                {
+                    var path = Path.GetFullPath(options.Output);
+                    SaveImage(result.Image, path, settings);
+                    WriteLine(path);
+                }
+                else
+                {
+                    // 和截图界面一致：弹保存对话框
+                    var dialog = new SaveImageDialog(settings);
+                    if (dialog.ShowDialog() == true)
+                    {
+                        SaveImage(result.Image, dialog.FilePath, settings, dialog.Format, dialog.Quality);
+                        WriteLine(dialog.FilePath);
+                    }
+                    else
+                    {
+                        WriteLine("cancelled");
+                    }
+                }
+
+                break;
+
+            case CaptureAction.Pin:
+                PinManager.Show(result.Image);
+                WriteLine("pinned");
+                break;
         }
     }
 
@@ -261,6 +309,10 @@ public static class CliRunner
 
     /// <summary>按扩展名选择编码器（png / jpg / bmp），JPG 用配置里的质量。</summary>
     private static void SaveImage(BitmapSource image, string path, AppSettings settings)
+        => SaveImage(image, path, settings, null, null);
+
+    private static void SaveImage(BitmapSource image, string path, AppSettings settings,
+        SaveImageFormat? format, int? quality)
     {
         var directory = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(directory))
@@ -268,10 +320,13 @@ public static class CliRunner
             Directory.CreateDirectory(directory);
         }
 
-        BitmapEncoder encoder = Path.GetExtension(path).ToLowerInvariant() switch
+        var effectiveFormat = format ?? DetectFormat(path, settings);
+        var effectiveQuality = Math.Clamp(quality ?? settings.JpegQuality, 10, 100);
+
+        BitmapEncoder encoder = effectiveFormat switch
         {
-            ".jpg" or ".jpeg" => new JpegBitmapEncoder { QualityLevel = settings.JpegQuality },
-            ".bmp" => new BmpBitmapEncoder(),
+            SaveImageFormat.Jpeg => new JpegBitmapEncoder { QualityLevel = effectiveQuality },
+            SaveImageFormat.Bmp => new BmpBitmapEncoder(),
             _ => new PngBitmapEncoder(),
         };
 
@@ -280,4 +335,18 @@ public static class CliRunner
         using var stream = File.Create(path);
         encoder.Save(stream);
     }
+
+    private static SaveImageFormat DetectFormat(string path, AppSettings settings)
+        => Path.GetExtension(path).ToLowerInvariant() switch
+        {
+            ".jpg" or ".jpeg" => SaveImageFormat.Jpeg,
+            ".bmp" => SaveImageFormat.Bmp,
+            ".png" => SaveImageFormat.Png,
+            _ => settings.DefaultFormat switch
+            {
+                "jpg" => SaveImageFormat.Jpeg,
+                "bmp" => SaveImageFormat.Bmp,
+                _ => SaveImageFormat.Png,
+            },
+        };
 }

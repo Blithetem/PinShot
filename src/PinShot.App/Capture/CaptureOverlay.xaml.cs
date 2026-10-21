@@ -70,6 +70,9 @@ public partial class CaptureOverlay : Window
     private EditorToolbar? _toolbar;
     private BitmapSource? _editorBackground;
 
+    /// <summary>当前标注工具；None 表示「选择 / 移动」模式，拖动选区内部可以整体挪动范围。</summary>
+    private EditorTool _currentTool = EditorTool.None;
+
     public CaptureOverlay(BitmapSource snapshot, Int32Rect virtualBounds,
         OverlayPurpose purpose = OverlayPurpose.Capture)
     {
@@ -294,6 +297,14 @@ public partial class CaptureOverlay : Window
             return;
         }
 
+        // 「选择 / 移动」工具下，拖选区内部 = 整体挪动截图范围（对齐 PixPin）
+        if (_currentTool == EditorTool.None && ToDipRect(selection).Contains(position))
+        {
+            BeginAdjust(Handle.Move, position);
+            e.Handled = true;
+            return;
+        }
+
         if (_spaceHeld && ToDipRect(selection).Contains(position))
         {
             BeginAdjust(Handle.Move, position);
@@ -328,6 +339,18 @@ public partial class CaptureOverlay : Window
                 _snapshot.PixelWidth, _snapshot.PixelHeight, dx, dy);
 
             ApplySelection(resized);
+            return;
+        }
+
+        // 编辑态：选择模式下悬停在选区内部时给「可移动」光标
+        if (_mode == OverlayMode.Editing)
+        {
+            Cursor = _currentTool == EditorTool.None &&
+                     _selection is { } currentSelection &&
+                     ToDipRect(currentSelection).Contains(position) &&
+                     HitTestHandle(position) == Handle.None
+                ? Cursors.SizeAll
+                : Cursors.Cross;
             return;
         }
 
@@ -783,8 +806,11 @@ public partial class CaptureOverlay : Window
         EditorCanvas.Children.Add(_annotationLayer);
 
         _toolbar = new EditorToolbar();
+        _currentTool = EditorTool.None;
         _toolbar.ToolSelected += tool =>
         {
+            _currentTool = tool;
+
             if (_annotationLayer is not null)
             {
                 _annotationLayer.Tool = tool;
@@ -854,7 +880,7 @@ public partial class CaptureOverlay : Window
         EditorCanvas.Children.Add(_toolbar);
         PositionToolbar(dip);
 
-        TipText.Text = "拖动手柄调整选区 · 空格+拖动移动 · 方向键微调 · Enter 复制 · Ctrl+Z 撤销 · Esc 取消";
+        TipText.Text = "直接拖动选区内部可整体挪动范围 · 拖手柄改大小 · 选工具后开始标注 · Enter 复制 · Esc 取消";
         _annotationLayer.Focus();
         UpdateToolbarState();
         UpdateHandles();

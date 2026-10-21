@@ -414,6 +414,12 @@ public sealed class AnnotationLayer : FrameworkElement
         // 4) 点空白：取消选中后按当前工具绘制
         ClearSelectionCore();
 
+        // 选择模式不绘制：让上层（截图遮罩）接管，拖动选区整体移动
+        if (Tool == EditorTool.None)
+        {
+            return;
+        }
+
         CaptureMouse();
         _startImage = imagePoint;
 
