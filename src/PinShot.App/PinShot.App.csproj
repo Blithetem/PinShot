@@ -12,9 +12,20 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>AnyCPU;x64</Platforms>
     <Version>0.1.0</Version>
+    <!-- 自定义入口：先走不依赖 WPF 的 CLI 快速路径（App.xaml 因此改为 Page） -->
+    <StartupObject>PinShot.App.Program</StartupObject>
     <!-- WPF 需要 manifest 中的 PerMonitorV2 设置；WinForms 分析器建议改用项目属性，此处保留 manifest -->
     <NoWarn>$(NoWarn);WFAC010;NU1903;NU1902</NoWarn>
   </PropertyGroup>
+
+  <!--
+    App.xaml 默认作为 ApplicationDefinition 会由 XAML 编译器生成 Main，
+    与自定义 Program.Main 冲突，所以改成普通 Page（只生成 InitializeComponent）。
+  -->
+  <ItemGroup>
+    <ApplicationDefinition Remove="App.xaml" />
+    <Page Include="App.xaml" />
+  </ItemGroup>
 
   <!--
     同时启用 WPF 与 WinForms 时，SDK 会为 WinForms 注入 System.Windows.Forms / System.Drawing

@@ -104,6 +104,9 @@ dotnet build PinShot.sln -c Release
 
 退出码：`0` 成功，`1` 参数或执行失败，`2` 用户取消。
 
+> 截图类命令（`--capture-full`、`--capture-region --region`、`--help`）走不启动 WPF 的快速路径：全屏截图约 **150 ms**，`--help` 约 **65 ms**。
+> `--pin` 和交互式框选需要窗口，仍会正常启动 WPF（约 1.2 s）。
+
 示例：
 
 ```powershell
@@ -144,6 +147,7 @@ PinShot.exe --longshot-test      # 长截图拼接算法（合成帧）
 PinShot.exe --gif-test           # GIF 录制 2 秒
 PinShot.exe --record-test        # 录屏 3 秒
 PinShot.exe --ocr-test           # OCR 引擎
+PinShot.exe --help --diag-startup  # 输出启动各阶段耗时到 %TEMP%\pinshot-startup.txt
 ```
 
 日志：`%LOCALAPPDATA%\PinShot\logs\`（`error.log` 异常、`info.log` 启动与热键绑定）。
