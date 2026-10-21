@@ -35,6 +35,10 @@ public static class Program
         }
 
         Diag.Mark("wpf-start");
+
+        // 单文件分发版：首次启动把内嵌的 OCR 插件释放到磁盘
+        Services.OcrPayload.EnsureAvailable();
+
         var app = new App();
         app.InitializeComponent();
         Diag.Mark("wpf-init-done");

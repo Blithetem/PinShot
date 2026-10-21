@@ -20,6 +20,11 @@ internal static class OcrPluginLoader
     /// <summary>插件目录：程序目录下的 ocr-plugin\。</summary>
     public static string PluginDirectory => Path.Combine(AppContext.BaseDirectory, "ocr-plugin");
 
+    /// <summary>备用插件目录：单文件分发时插件被释放到 %LOCALAPPDATA%\PinShot\ocr-plugin。</summary>
+    private static string FallbackDirectory => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "PinShot", "ocr-plugin");
+
     /// <summary>已加载的引擎；未安装插件时为 null。</summary>
     public static IOcrEngine? Engine
     {
@@ -57,8 +62,8 @@ internal static class OcrPluginLoader
     {
         try
         {
-            var directory = PluginDirectory;
-            if (!Directory.Exists(directory))
+            var directory = ResolvePluginDirectory();
+            if (directory is null)
             {
                 return (null, "未安装 OCR 插件（缺少 ocr-plugin 目录）");
             }
@@ -94,6 +99,24 @@ internal static class OcrPluginLoader
         {
             return (null, $"OCR 插件加载失败：{ex.Message}");
         }
+    }
+
+    /// <summary>先找程序目录，再找单文件分发时释放的 LocalAppData 目录。</summary>
+    private static string? ResolvePluginDirectory()
+    {
+        var candidates = new[] { PluginDirectory, FallbackDirectory };
+
+        foreach (var directory in candidates)
+        {
+            if (Directory.Exists(directory) &&
+                Directory.GetFiles(directory, "PinShot.Ocr.WinRt.dll", SearchOption.TopDirectoryOnly)
+                    .Length > 0)
+            {
+                return directory;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>插件独立加载上下文：优先用插件目录里的依赖，共享契约走主程序。</summary>
