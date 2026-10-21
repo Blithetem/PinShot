@@ -2,7 +2,6 @@ using System.IO;
 using System.Text;
 using System.Globalization;
 using System.Windows;
-using Windows.Media.Ocr;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -1426,14 +1425,24 @@ public partial class App : Application
     {
         try
         {
+            var engine = OcrPluginLoader.Engine;
+            var languages = engine is null ? "无插件" : string.Join(",", engine.Languages);
+            WriteInfo($"OCR 自检: 插件={(engine?.Name ?? "未安装")} 语言={languages} " +
+                      $"可用={OcrService.IsAvailable} 原因={OcrService.UnavailableReason ?? "无"}");
+
+            if (engine is null)
+            {
+                Shutdown();
+                return;
+            }
+
             var (image, _) = ScreenCapture.CaptureVirtualScreen();
 
             var text = Task.Run(() => OcrService.RecognizeAsync(image))
                 .GetAwaiter().GetResult();
 
             var preview = text.Length > 120 ? text[..120] : text;
-            WriteInfo($"OCR 自检: 语言={string.Join(",", OcrEngine.AvailableRecognizerLanguages.Select(l => l.LanguageTag))} " +
-                      $"字数={text.Length} 预览={preview.Replace("\r", " ").Replace("\n", " | ")}");
+            WriteInfo($"OCR 自检结果: 字数={text.Length} 预览={preview.Replace("\r", " ").Replace("\n", " | ")}");
         }
         catch (Exception ex)
         {

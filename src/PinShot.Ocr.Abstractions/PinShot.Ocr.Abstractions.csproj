@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>PinShot.Ocr.Abstractions</RootNamespace>
+    <AssemblyName>PinShot.Ocr.Abstractions</AssemblyName>
+    <Description>PinShot OCR 插件的共享契约，主程序与插件都只依赖这一个极小的程序集。</Description>
+  </PropertyGroup>
+
+</Project>

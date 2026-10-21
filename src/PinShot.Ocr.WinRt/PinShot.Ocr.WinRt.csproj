@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>PinShot.Ocr.WinRt</RootNamespace>
+    <AssemblyName>PinShot.Ocr.WinRt</AssemblyName>
+    <Description>PinShot 的可选 OCR 插件：基于 Windows.Media.Ocr 的离线识别。</Description>
+    <!-- 插件只需要 Windows SDK 投影，不需要 WPF -->
+    <UseWPF>false</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PinShot.Ocr.Abstractions\PinShot.Ocr.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

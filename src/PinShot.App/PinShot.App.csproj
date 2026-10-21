@@ -2,7 +2,9 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <!-- 不指定 Windows SDK 版本：避免引入 23.5 MB 的 WinRT 投影。
+         需要 WinRT 的 OCR 能力做成可选插件，见 src\PinShot.Ocr.WinRt。 -->
+    <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
@@ -38,6 +40,11 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="SharpAvi" Version="3.0.1" />
+  </ItemGroup>
+
+  <!-- OCR 插件契约（极小）；WinRT 实现在可选插件项目里，主程序不引用 -->
+  <ItemGroup>
+    <ProjectReference Include="..\PinShot.Ocr.Abstractions\PinShot.Ocr.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

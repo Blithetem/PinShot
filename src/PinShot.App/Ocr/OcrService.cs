@@ -6,16 +6,13 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Windows.Media.Ocr;
-using Windows.Storage.Streams;
 using WpfBitmapFrame = System.Windows.Media.Imaging.BitmapFrame;
 
 namespace PinShot.App.Ocr;
 
 /// <summary>
-/// OCR 服务：优先调用在线视觉模型（体积为零、识别质量最高），
-/// 不可用时回退 Windows 内置 OCR。
-/// 在线服务配置见 %LOCALAPPDATA%\PinShot\ocr.json。
+/// OCR 服务：优先在线视觉模型（可选），否则走本地 OCR 插件。
+/// 本地识别实现在 ocr-plugin\ 目录（可选安装），主程序本身不含 WinRT 依赖。
 /// </summary>
 public static class OcrService
 {
@@ -24,20 +21,34 @@ public static class OcrService
         Timeout = TimeSpan.FromSeconds(60),
     };
 
-    public static bool IsAvailable => true;
+    /// <summary>是否具备识别能力（在线已开启或插件已安装）。</summary>
+    public static bool IsAvailable
+    {
+        get
+        {
+            var settings = OcrSettings.Load();
+            if (settings.UseOnline && !string.IsNullOrWhiteSpace(settings.Endpoint))
+            {
+                return true;
+            }
 
-    public static string? UnavailableReason => null;
+            return OcrPluginLoader.Engine is not null;
+        }
+    }
+
+    /// <summary>不可用原因，用于界面提示。</summary>
+    public static string? UnavailableReason => IsAvailable ? null : OcrPluginLoader.Error;
 
     public static async Task<string> RecognizeAsync(BitmapSource image, double scale = 2.0)
     {
         var settings = OcrSettings.Load();
 
-        // 默认走本地 Windows OCR（快、离线）；在线 OCR 需要在 ocr.json 里显式开启
+        // 在线识别优先级更高（准确率好），失败时静默回退本地插件
         if (settings.UseOnline)
         {
             try
             {
-                var online = await RecognizeOnlineAsync(image);
+                var online = await RecognizeOnlineAsync(image, settings);
                 if (!string.IsNullOrWhiteSpace(online))
                 {
                     return online;
@@ -45,18 +56,24 @@ public static class OcrService
             }
             catch
             {
-                // 在线 OCR 失败时回退本地
+                // 在线失败时回退本地
             }
         }
 
-        return await RecognizeWithWindowsOcr(image, scale);
+        var engine = OcrPluginLoader.Engine;
+        if (engine is null)
+        {
+            throw new InvalidOperationException(
+                "未安装本地 OCR 插件。把插件目录放到程序下的 ocr-plugin\\ 即可启用离线识别，");
+        }
+
+        var prepared = Preprocess(image, scale);
+        var pngBytes = EncodePng(prepared);
+        return await engine.RecognizeAsync(pngBytes);
     }
 
-    private static async Task<string> RecognizeOnlineAsync(BitmapSource image)
+    private static async Task<string> RecognizeOnlineAsync(BitmapSource image, OcrSettings settings)
     {
-        var settings = OcrSettings.Load();
-
-        // 未配置服务地址/凭据时直接回退本地，不在请求里带空值
         if (string.IsNullOrWhiteSpace(settings.Endpoint) ||
             string.IsNullOrWhiteSpace(settings.ApiKey) ||
             string.IsNullOrWhiteSpace(settings.Model))
@@ -64,7 +81,6 @@ public static class OcrService
             return string.Empty;
         }
 
-        // 控制请求体积：最大宽 1600
         var prepared = LimitWidth(image, 1600);
         var base64 = Convert.ToBase64String(EncodePng(prepared));
 
@@ -130,63 +146,6 @@ public static class OcrService
         return memory.ToArray();
     }
 
-    private static async Task<string> RecognizeWithWindowsOcr(BitmapSource image, double scale)
-    {
-        var prepared = Preprocess(image, scale);
-        var stream = await ToRandomAccessStreamAsync(prepared);
-
-        var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream);
-        using var softwareBitmap = await decoder.GetSoftwareBitmapAsync();
-
-        var engine = OcrEngine.TryCreateFromUserProfileLanguages()
-                     ?? OcrEngine.TryCreateFromLanguage(OcrEngine.AvailableRecognizerLanguages[0]);
-
-        if (engine is null)
-        {
-            throw new InvalidOperationException("OCR 引擎不可用");
-        }
-
-        var result = await engine.RecognizeAsync(softwareBitmap);
-
-        var lines = new List<string>();
-        foreach (var line in result.Lines)
-        {
-            lines.Add(NormalizeSpaces(line.Text));
-        }
-
-        return string.Join(Environment.NewLine, lines);
-    }
-
-    private static string NormalizeSpaces(string line)
-    {
-        if (string.IsNullOrEmpty(line))
-        {
-            return line;
-        }
-
-        var builder = new StringBuilder(line.Length);
-        for (var i = 0; i < line.Length; i++)
-        {
-            var current = line[i];
-
-            if (current == ' ' && i > 0 && i < line.Length - 1 &&
-                IsCjk(line[i - 1]) && IsCjk(line[i + 1]))
-            {
-                continue;
-            }
-
-            builder.Append(current);
-        }
-
-        return builder.ToString();
-    }
-
-    private static bool IsCjk(char value)
-        => (value >= 0x4E00 && value <= 0x9FFF) ||
-           (value >= 0x3400 && value <= 0x4DBF) ||
-           (value >= 0x3000 && value <= 0x303F) ||
-           (value >= 0xFF00 && value <= 0xFFEF);
-
     private static BitmapSource Preprocess(BitmapSource image, double scale)
     {
         if (scale <= 1.05)
@@ -209,22 +168,5 @@ public static class OcrService
         var scaled = new TransformedBitmap(image, new ScaleTransform(effective, effective));
         scaled.Freeze();
         return scaled;
-    }
-
-    private static async Task<InMemoryRandomAccessStream> ToRandomAccessStreamAsync(BitmapSource image)
-    {
-        var bytes = EncodePng(image);
-
-        var stream = new InMemoryRandomAccessStream();
-        using (var writer = new DataWriter(stream.GetOutputStreamAt(0)))
-        {
-            writer.WriteBytes(bytes);
-            await writer.StoreAsync();
-            await writer.FlushAsync();
-            writer.DetachStream();
-        }
-
-        stream.Seek(0);
-        return stream;
     }
 }

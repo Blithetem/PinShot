@@ -4,13 +4,27 @@
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$exe = Join-Path $root 'src\PinShot.App\bin\Release\net8.0-windows10.0.19041.0\PinShot.exe'
 $infoLog = Join-Path $env:LOCALAPPDATA 'PinShot\logs\info.log'
 $errorLog = Join-Path $env:LOCALAPPDATA 'PinShot\logs\error.log'
 $tmp = [System.IO.Path]::GetTempPath()
 
-if (-not (Test-Path $exe)) {
-    Write-Host "找不到可执行文件：$exe" -ForegroundColor Red
+# 兼容两种 TFM：lean 构建（net8.0-windows）与旧构建（带 Windows SDK 版本）
+$exeCandidates = @(
+    'src\PinShot.App\bin\Release\net8.0-windows\PinShot.exe',
+    'src\PinShot.App\bin\Release\net8.0-windows10.0.19041.0\PinShot.exe'
+)
+
+$exe = $null
+foreach ($candidate in $exeCandidates) {
+    $full = Join-Path $root $candidate
+    if (Test-Path $full) {
+        $exe = $full
+        break
+    }
+}
+
+if (-not $exe) {
+    Write-Host "找不到可执行文件，先构建：dotnet build PinShot.sln -c Release" -ForegroundColor Red
     exit 1
 }
 
