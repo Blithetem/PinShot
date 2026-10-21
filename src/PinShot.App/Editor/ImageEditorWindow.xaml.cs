@@ -67,7 +67,9 @@ public partial class ImageEditorWindow : Window
         EditorCanvas.Children.Add(_annotationLayer);
 
         // 长图场景没有"滚动长截图/录制当前选区"，把这两个动作按钮隐藏掉。
-        _toolbar = new EditorToolbar(showLongShotAction: false, showRecordAction: false);
+        // 默认用矩形工具：打开编辑窗口就能直接画，不用先点工具。
+        _toolbar = new EditorToolbar(showLongShotAction: false, showRecordAction: false,
+            defaultTool: EditorTool.Rectangle);
         _toolbar.ToolSelected += tool =>
         {
             _annotationLayer.Tool = tool;

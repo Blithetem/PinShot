@@ -83,8 +83,11 @@ public sealed class EditorToolbar : Border
     /// <param name="showLongShotAction">是否显示「滚动」动作按钮（长截图入口）。</param>
     /// <param name="showRecordAction">是否显示「录制」动作按钮。</param>
     /// <param name="showOcrAction">是否显示「识别」动作按钮。</param>
+    /// <param name="defaultTool">
+    /// 默认工具。截图界面用 None（选择/移动选区），贴图和长图编辑器用矩形（打开就能画）。
+    /// </param>
     public EditorToolbar(bool showLongShotAction = true, bool showRecordAction = true,
-        bool showOcrAction = true)
+        bool showOcrAction = true, EditorTool defaultTool = EditorTool.None)
     {
         _showLongShotAction = showLongShotAction;
         _showRecordAction = showRecordAction;
@@ -230,7 +233,7 @@ public sealed class EditorToolbar : Border
         root.Children.Add(mainRow);
         Child = root;
 
-        SelectTool(EditorTool.None);
+        SelectTool(defaultTool);
         SelectColor(Palette[0]);
         SelectThickness(4);
         UpdateState(false, false);

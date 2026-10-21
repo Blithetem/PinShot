@@ -713,15 +713,54 @@ public partial class PinWindow : Window
         };
         _annotationLayer.TextRequested += OnAnnotationTextRequested;
         _annotationLayer.TextEditRequested += OnAnnotationTextEditRequested;
+        _annotationLayer.LabelRequested += OnAnnotationLabelRequested;
+        _annotationLayer.LabelEditRequested += OnAnnotationLabelEditRequested;
         _annotationLayer.Changed += () =>
             _annotationBar?.Toolbar.UpdateState(_annotationLayer.CanUndo, _annotationLayer.CanRedo);
 
         AnnotationHost.Children.Add(_annotationLayer);
     }
 
+    /// <summary>当前鼠标位置（DIP），让输入框贴到点击处。</summary>
+    private Point CursorDip()
+    {
+        try
+        {
+            var cursor = System.Windows.Forms.Cursor.Position;
+            var dpi = VisualTreeHelper.GetDpi(this);
+            return new Point(cursor.X / dpi.DpiScaleX, cursor.Y / dpi.DpiScaleY);
+        }
+        catch
+        {
+            return new Point(240, 240);
+        }
+    }
+
+    private void OnAnnotationLabelRequested(Point imagePoint)
+    {
+        var dialog = new TextInputDialog(null, CursorDip()) { Owner = this };
+        if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.Text))
+        {
+            _annotationLayer?.AddLabel(imagePoint, dialog.Text!);
+        }
+
+        FocusAnnotationLayer();
+    }
+
+    private void OnAnnotationLabelEditRequested(LabelAnnotation label)
+    {
+        var dialog = new TextInputDialog(label.Text, CursorDip()) { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            _annotationLayer?.UpdateLabel(label, dialog.Text ?? string.Empty);
+        }
+
+        FocusAnnotationLayer();
+    }
+
     private void OnAnnotationTextRequested(Point imagePoint)
     {
-        var dialog = new TextInputDialog { Owner = this };
+        var dialog = new TextInputDialog(null, CursorDip()) { Owner = this };
         if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.Text))
         {
             _annotationLayer?.AddText(imagePoint, dialog.Text!);
@@ -732,7 +771,7 @@ public partial class PinWindow : Window
 
     private void OnAnnotationTextEditRequested(TextAnnotation annotation)
     {
-        var dialog = new TextInputDialog(annotation.Text) { Owner = this };
+        var dialog = new TextInputDialog(annotation.Text, CursorDip()) { Owner = this };
         if (dialog.ShowDialog() == true)
         {
             _annotationLayer?.UpdateText(annotation, dialog.Text ?? string.Empty);

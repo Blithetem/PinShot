@@ -28,7 +28,7 @@ internal sealed class PinAnnotationBar : Window
         ShowActivated = false;
 
         _toolbar = new EditorToolbar(showLongShotAction: false, showRecordAction: false,
-            showOcrAction: false);
+            showOcrAction: false, defaultTool: EditorTool.Rectangle);
         Content = _toolbar;
     }
 
