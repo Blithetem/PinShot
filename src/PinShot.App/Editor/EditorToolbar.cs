@@ -128,7 +128,9 @@ public sealed class EditorToolbar : Border
         AddTool(drawGroup, EditorTool.Label,
             MakeIcon("M3,5 H17 V13 L11,17 H3 Z M6,9 H14"), "标签（色块+文字，飞书同款）");
         AddTool(drawGroup, EditorTool.Number, MakeNumberIcon(), "序号 (Shift+8)");
-        AddTool(drawGroup, EditorTool.Mosaic, MakeIcon("M3,3 H9 V9 H3 Z M11,3 H17 V9 H11 Z M3,11 H9 V17 H3 Z M11,11 H17 V17 H11 Z"), "马赛克 (Shift+9)");
+        AddTool(drawGroup, EditorTool.Mosaic,
+            MakeIcon("M3,3 H17 V17 H3 Z M3,8.5 H17 M3,13.5 H17 M8.5,3 V17 M13.5,3 V17"),
+            "马赛克（拖框打码，Shift+9）");
         AddTool(drawGroup, EditorTool.Eraser, MakeIcon("M4,15 L10,6 L16,10 L10,18 Z M9,17 H18"), "擦除 (Shift+0)");
 
         drawGroup.Children.Add(Divider());
