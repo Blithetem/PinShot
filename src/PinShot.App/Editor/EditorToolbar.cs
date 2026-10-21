@@ -69,6 +69,7 @@ public sealed class EditorToolbar : Border
     private readonly Dictionary<TextBackgroundKind, Button> _textBackgroundButtons = new();
     private readonly Button _undoButton;
     private readonly Button _redoButton;
+    private Popup? _optionsPopup;
     private readonly StackPanel _optionsRow;
     private readonly bool _showLongShotAction;
     private readonly bool _showRecordAction;
@@ -181,8 +182,39 @@ public sealed class EditorToolbar : Border
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 4, 0, 0),
             Visibility = Visibility.Collapsed,
+        };
+
+        // 参数面板做成贴在「当前工具按钮」下方的气泡，而不是固定在工具条正下方
+        _optionsPopup = new Popup
+        {
+            Child = new Border
+            {
+                Background = Brush("ToolbarBackgroundBrush", Color.FromArgb(0xF2, 0x1C, 0x1C, 0x1F)),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(8, 6, 8, 6),
+                Effect = new DropShadowEffect
+                {
+                    BlurRadius = 18,
+                    ShadowDepth = 3,
+                    Direction = 270,
+                    Opacity = 0.55,
+                },
+                Child = _optionsRow,
+            },
+            StaysOpen = false,
+            AllowsTransparency = true,
+            Placement = PlacementMode.Custom,
+            VerticalOffset = 8,
+            HorizontalOffset = 0,
+        };
+
+        // 气泡水平居中对准被点击的工具按钮
+        _optionsPopup.CustomPopupPlacementCallback = (popupSize, targetSize, _) =>
+        {
+            var x = -(popupSize.Width - targetSize.Width) / 2.0;
+            var y = targetSize.Height + 8;
+            return new[] { new CustomPopupPlacement(new Point(x, y), PopupPrimaryAxis.Horizontal) };
         };
 
         var mainRow = new WrapPanel
@@ -194,7 +226,6 @@ public sealed class EditorToolbar : Border
 
         var root = new StackPanel { Orientation = Orientation.Vertical };
         root.Children.Add(mainRow);
-        root.Children.Add(_optionsRow);
         Child = root;
 
         SelectTool(EditorTool.None);
@@ -612,6 +643,20 @@ public sealed class EditorToolbar : Border
         _optionsRow.Visibility = _optionsRow.Children.Count > 0
             ? Visibility.Visible
             : Visibility.Collapsed;
+
+        // 参数面板贴到当前工具按钮下方；没有参数就不弹
+        if (_optionsPopup is not null)
+        {
+            if (_optionsRow.Children.Count > 0 && _toolButtons.TryGetValue(_currentTool, out var anchor))
+            {
+                _optionsPopup.PlacementTarget = anchor;
+                _optionsPopup.IsOpen = true;
+            }
+            else
+            {
+                _optionsPopup.IsOpen = false;
+            }
+        }
 
         if (_currentTool == EditorTool.Text)
         {

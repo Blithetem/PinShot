@@ -967,9 +967,24 @@ public partial class CaptureOverlay : Window
         _toolbar.UpdateState(_annotationLayer.CanUndo, _annotationLayer.CanRedo);
     }
 
+    /// <summary>当前鼠标位置（DIP），用于把输入框贴到点击处。</summary>
+    private Point CursorDip()
+    {
+        try
+        {
+            var cursor = System.Windows.Forms.Cursor.Position;
+            var dpi = VisualTreeHelper.GetDpi(this);
+            return new Point(cursor.X / dpi.DpiScaleX, cursor.Y / dpi.DpiScaleY);
+        }
+        catch
+        {
+            return new Point(240, 240);
+        }
+    }
+
     private void OnTextRequested(Point imagePoint)
     {
-        var dialog = new TextInputDialog { Owner = this };
+        var dialog = new TextInputDialog(null, CursorDip()) { Owner = this };
         if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.Text))
         {
             _annotationLayer?.AddText(imagePoint, dialog.Text!);
@@ -980,7 +995,7 @@ public partial class CaptureOverlay : Window
 
     private void OnTextEditRequested(TextAnnotation annotation)
     {
-        var dialog = new TextInputDialog(annotation.Text) { Owner = this };
+        var dialog = new TextInputDialog(annotation.Text, CursorDip()) { Owner = this };
         if (dialog.ShowDialog() == true)
         {
             _annotationLayer?.UpdateText(annotation, dialog.Text ?? string.Empty);
@@ -991,7 +1006,7 @@ public partial class CaptureOverlay : Window
 
     private void OnLabelRequested(Point imagePoint)
     {
-        var dialog = new TextInputDialog { Owner = this };
+        var dialog = new TextInputDialog(null, CursorDip()) { Owner = this };
         if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.Text))
         {
             _annotationLayer?.AddLabel(imagePoint, dialog.Text!);
@@ -1002,7 +1017,7 @@ public partial class CaptureOverlay : Window
 
     private void OnLabelEditRequested(LabelAnnotation label)
     {
-        var dialog = new TextInputDialog(label.Text) { Owner = this };
+        var dialog = new TextInputDialog(label.Text, CursorDip()) { Owner = this };
         if (dialog.ShowDialog() == true)
         {
             _annotationLayer?.UpdateLabel(label, dialog.Text ?? string.Empty);

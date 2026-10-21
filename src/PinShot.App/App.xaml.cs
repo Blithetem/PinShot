@@ -1216,14 +1216,10 @@ public partial class App : Application
 
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    var dpi = VisualTreeHelper.GetDpi(window);
-                    var w = Math.Max((int)Math.Ceiling(root.ActualWidth * dpi.DpiScaleX), 1);
-                    var h = Math.Max((int)Math.Ceiling(root.ActualHeight * dpi.DpiScaleY), 1);
-                    var shot = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
-                    shot.Render(root);
-
+                    // Popup 是独立窗口，RenderTargetBitmap 抓不到，这里直接抓真实屏幕
+                    var (screen, _) = ScreenCapture.CaptureVirtualScreen();
                     var path = Path.Combine(SelfTestDirectory, $"toolbar-{name}.png");
-                    SavePng(shot, path);
+                    SavePng(screen, path);
                     WriteInfo($"工具参数行自检: {tool} -> {path}");
                 }), DispatcherPriority.Loaded);
             };
