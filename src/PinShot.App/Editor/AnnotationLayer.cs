@@ -201,8 +201,14 @@ public sealed class AnnotationLayer : FrameworkElement
     /// <summary>请求输入文字（参数为图像坐标）。</summary>
     public event Action<Point>? TextRequested;
 
+    /// <summary>请求输入标签文字（参数为图像坐标）。</summary>
+    public event Action<Point>? LabelRequested;
+
     /// <summary>请求编辑已有文字标注（双击文字时触发）。</summary>
     public event Action<TextAnnotation>? TextEditRequested;
+
+    /// <summary>请求编辑已有标签（双击标签时触发）。</summary>
+    public event Action<LabelAnnotation>? LabelEditRequested;
 
     public event Action? Changed;
 
@@ -406,6 +412,16 @@ public sealed class AnnotationLayer : FrameworkElement
                 return;
             }
 
+            if (e.ClickCount >= 2 && hit is LabelAnnotation label)
+            {
+                _selected = hit;
+                _selectedIndex = _annotations.IndexOf(hit);
+                InvalidateVisual();
+                LabelEditRequested?.Invoke(label);
+                e.Handled = true;
+                return;
+            }
+
             BeginMove(hit, imagePoint);
             e.Handled = true;
             return;
@@ -428,6 +444,11 @@ public sealed class AnnotationLayer : FrameworkElement
             case EditorTool.Text:
                 ReleaseMouseCapture();
                 TextRequested?.Invoke(imagePoint);
+                return;
+
+            case EditorTool.Label:
+                ReleaseMouseCapture();
+                LabelRequested?.Invoke(imagePoint);
                 return;
 
             case EditorTool.Number:
@@ -1139,6 +1160,29 @@ public sealed class AnnotationLayer : FrameworkElement
     public void AddText(Point imagePoint, string text)
     {
         Commit(new TextAnnotation(DrawingStyle, imagePoint, text));
+    }
+
+    /// <summary>在指定图像坐标处添加标签（实心色块 + 文字）。</summary>
+    public void AddLabel(Point imagePoint, string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        Commit(new LabelAnnotation(DrawingStyle, imagePoint, text)
+        {
+            BackgroundColor = DrawingStyle.Color,
+        });
+    }
+
+    /// <summary>修改标签内容（双击标签后调用）。</summary>
+    public void UpdateLabel(LabelAnnotation annotation, string text)
+    {
+        PushUndo();
+        annotation.Text = text;
+        InvalidateVisual();
+        Changed?.Invoke();
     }
 
     /// <summary>修改文字标注内容（双击文字后调用）。</summary>

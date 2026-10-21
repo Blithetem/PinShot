@@ -112,6 +112,13 @@ public partial class App : Application
             return;
         }
 
+        // 自检入口：标签标注渲染
+        if (e.Args.Contains("--label-test", StringComparer.OrdinalIgnoreCase))
+        {
+            RunLabelSelfTest();
+            return;
+        }
+
         // 自检入口：贴图管理（生命周期 / 历史 / 分组 / 图像处理）
         if (e.Args.Contains("--pin-manager-test", StringComparer.OrdinalIgnoreCase))
         {
@@ -1139,6 +1146,67 @@ public partial class App : Application
             Directory.CreateDirectory(directory);
             return directory;
         }
+    }
+
+    /// <summary>自检：标签标注渲染（背景色、自动黑白文字、圆角）。</summary>
+    private void RunLabelSelfTest()
+    {
+        try
+        {
+            const int width = 640;
+            const int height = 420;
+
+            var source = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+            var visual = new DrawingVisual();
+            using (var dc = visual.RenderOpen())
+            {
+                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0xF5, 0xF6, 0xF8)), null,
+                    new Rect(0, 0, width, height));
+
+                var hint = new FormattedText("标签标注自检：色块 + 自动黑白文字", CultureInfo.CurrentCulture,
+                    FlowDirection.LeftToRight, new Typeface("Microsoft YaHei UI"), 15,
+                    Brushes.DimGray, 1.0);
+                dc.DrawText(hint, new Point(24, 18));
+            }
+
+            source.Render(visual);
+            source.Freeze();
+
+            var layer = new AnnotationLayer { Background = source };
+            layer.Measure(new Size(width, height));
+            layer.Arrange(new Rect(0, 0, width, height));
+
+            var samples = new (Color Color, string Text)[]
+            {
+                (Color.FromRgb(0xE8, 0x3A, 0x3A), "红色标签"),
+                (Color.FromRgb(0xF2, 0xC2, 0x00), "黄色标签"),
+                (Color.FromRgb(0x2F, 0xA8, 0x4F), "绿色标签"),
+                (Color.FromRgb(0x2D, 0x8C, 0xFF), "蓝色标签"),
+                (Color.FromRgb(0x11, 0x11, 0x11), "黑色标签"),
+                (Colors.White, "白色标签"),
+            };
+
+            var y = 60.0;
+            foreach (var sample in samples)
+            {
+                layer.DrawingStyle.Color = sample.Color;
+                layer.DrawingStyle.FontSize = 18;
+                layer.AddLabel(new Point(28, y), sample.Text);
+                y += 52;
+            }
+
+            var output = layer.Render(source);
+            var path = Path.Combine(SelfTestDirectory, "label-annotations.png");
+            SavePng(output, path);
+
+            WriteInfo($"标签自检: 渲染 {samples.Length} 个标签 {output.PixelWidth}x{output.PixelHeight} 截图={path}");
+        }
+        catch (Exception ex)
+        {
+            WriteLog("LabelSelfTest", ex);
+        }
+
+        Shutdown();
     }
 
     /// <summary>自检：设置窗口 + 热键解析。</summary>

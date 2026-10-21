@@ -11,6 +11,7 @@ public enum EditorTool
     Pen,
     Highlighter,
     Text,
+    Label,
     Number,
     Mosaic,
     Eraser,

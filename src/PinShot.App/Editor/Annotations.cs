@@ -555,3 +555,93 @@ public sealed class MosaicAnnotation : AnnotationBase
         return clone;
     }
 }
+
+/// <summary>
+/// 标签标注（对齐飞书打标签）：实心圆角色块 + 文字，文字颜色按背景亮度自动取黑/白。
+/// </summary>
+public sealed class LabelAnnotation : AnnotationBase
+{
+    public LabelAnnotation(AnnotationStyle style, Point origin, string text) : base(style)
+    {
+        Origin = origin;
+        Text = text;
+    }
+
+    public Point Origin { get; set; }
+
+    public string Text { get; set; }
+
+    /// <summary>背景色单独存，避免后续改画笔颜色把已有标签一起改掉。</summary>
+    public Color BackgroundColor { get; set; }
+
+    private const double PadX = 9;
+    private const double PadY = 5;
+
+    public override Rect Bounds
+    {
+        get
+        {
+            var formatted = CreateFormattedText();
+            return new Rect(Origin.X, Origin.Y,
+                formatted.Width + PadX * 2, formatted.Height + PadY * 2);
+        }
+    }
+
+    public override void Draw(DrawingContext dc, BitmapSource? background)
+    {
+        if (string.IsNullOrEmpty(Text))
+        {
+            return;
+        }
+
+        var formatted = CreateFormattedText();
+        var bounds = Bounds;
+
+        var fill = new SolidColorBrush(BackgroundColor);
+        fill.Freeze();
+
+        dc.DrawRoundedRectangle(fill, null, bounds, 5, 5);
+        dc.DrawText(formatted, new Point(Origin.X + PadX, Origin.Y + PadY));
+    }
+
+    private FormattedText CreateFormattedText()
+    {
+        var typeface = new Typeface(new FontFamily("Microsoft YaHei"), FontStyles.Normal,
+            FontWeights.SemiBold, FontStretches.Normal);
+
+        return new FormattedText(Text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
+            typeface, Style.FontSize, CreateTextBrush(), 1.0);
+    }
+
+    /// <summary>亮背景用深色字、暗背景用白字。</summary>
+    private Brush CreateTextBrush()
+    {
+        var luminance = (0.299 * BackgroundColor.R + 0.587 * BackgroundColor.G +
+                         0.114 * BackgroundColor.B) / 255.0;
+
+        var brush = new SolidColorBrush(luminance > 0.62
+            ? Color.FromRgb(0x11, 0x11, 0x11)
+            : Colors.White);
+        brush.Freeze();
+        return brush;
+    }
+
+    public override void Translate(double dx, double dy)
+        => Origin = new Point(Origin.X + dx, Origin.Y + dy);
+
+    public override void Scale(double sx, double sy, Point anchor)
+    {
+        Origin = ScalePoint(Origin, anchor, sx, sy);
+        Style.FontSize = ScaleFontSize(Style.FontSize, sx, sy);
+    }
+
+    protected override IAnnotation CloneCore()
+    {
+        var clone = new LabelAnnotation(Style, Origin, Text)
+        {
+            BackgroundColor = BackgroundColor,
+        };
+        clone.Style = Style.Clone();
+        return clone;
+    }
+}

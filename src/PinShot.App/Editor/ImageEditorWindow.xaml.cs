@@ -59,6 +59,8 @@ public partial class ImageEditorWindow : Window
         Canvas.SetTop(_annotationLayer, 0);
         _annotationLayer.TextRequested += OnTextRequested;
         _annotationLayer.TextEditRequested += OnTextEditRequested;
+        _annotationLayer.LabelRequested += OnLabelRequested;
+        _annotationLayer.LabelEditRequested += OnLabelEditRequested;
         _annotationLayer.Changed += () =>
             _toolbar?.UpdateState(_annotationLayer.CanUndo, _annotationLayer.CanRedo);
         EditorCanvas.Children.Add(_annotationLayer);
@@ -135,6 +137,28 @@ public partial class ImageEditorWindow : Window
         if (dialog.ShowDialog() == true)
         {
             _annotationLayer?.UpdateText(annotation, dialog.Text ?? string.Empty);
+        }
+
+        _annotationLayer?.Focus();
+    }
+
+    private void OnLabelRequested(Point imagePoint)
+    {
+        var dialog = new TextInputDialog { Owner = this };
+        if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.Text))
+        {
+            _annotationLayer?.AddLabel(imagePoint, dialog.Text!);
+        }
+
+        _annotationLayer?.Focus();
+    }
+
+    private void OnLabelEditRequested(LabelAnnotation label)
+    {
+        var dialog = new TextInputDialog(label.Text) { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            _annotationLayer?.UpdateLabel(label, dialog.Text ?? string.Empty);
         }
 
         _annotationLayer?.Focus();
