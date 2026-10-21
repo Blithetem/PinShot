@@ -820,7 +820,7 @@ public sealed class AnnotationLayer : FrameworkElement
             EditorTool.Ellipse => new EllipseAnnotation(DrawingStyle, _startImage, current),
             EditorTool.Line => new LineAnnotation(DrawingStyle, _startImage, current),
             EditorTool.Arrow => new ArrowAnnotation(DrawingStyle, _startImage, current),
-            EditorTool.Mosaic => new MosaicAnnotation(DrawingStyle, NormalizeRect(_startImage, current)),
+            EditorTool.Mosaic => new MosaicAnnotation(DrawingStyle, NormalizeRect(_startImage, current), MosaicBlockSize),
             EditorTool.Spotlight => new SpotlightAnnotation(SpotlightStyle(),
                 NormalizeRect(_startImage, current), SpotlightEllipse),
             EditorTool.Magnifier => new MagnifierAnnotation(DrawingStyle,
@@ -1155,6 +1155,9 @@ public sealed class AnnotationLayer : FrameworkElement
         InvalidateVisual();
         Changed?.Invoke();
     }
+
+    /// <summary>马赛克块大小（像素），由工具栏「强度」选项控制。</summary>
+    public int MosaicBlockSize { get; set; } = 10;
 
     /// <summary>在指定图像坐标处添加文字标注。</summary>
     public void AddText(Point imagePoint, string text)

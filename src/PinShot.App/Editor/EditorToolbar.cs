@@ -63,6 +63,9 @@ public sealed class EditorToolbar : Border
 
     /// <summary>线宽可选项（二级面板）。</summary>
     private static readonly double[] ThicknessChoices = { 2, 4, 7, 12 };
+
+    /// <summary>马赛克块大小可选项。</summary>
+    private static readonly int[] MosaicChoices = { 6, 10, 16 };
     private readonly Dictionary<TextBackgroundKind, Button> _textBackgroundButtons = new();
     private readonly Button _undoButton;
     private readonly Button _redoButton;
@@ -135,9 +138,7 @@ public sealed class EditorToolbar : Border
 
         drawGroup.Children.Add(Divider());
 
-        // 颜色和线宽收进二级面板（对齐飞书）：主工具条只保留两个入口按钮
-        drawGroup.Children.Add(CreateColorPicker());
-        drawGroup.Children.Add(CreateThicknessPicker());
+        // 颜色/线宽不再固定在工具条上，改为选中工具后在下方显示该工具自己的参数（对齐飞书）
 
         drawGroup.Children.Add(Divider());
 
@@ -485,6 +486,9 @@ public sealed class EditorToolbar : Border
         panel.Children.Add(button);
     }
 
+    /// <summary>自检用：程序化切换工具，验证选项行内容。</summary>
+    internal void SelectToolForTest(EditorTool tool) => SelectTool(tool);
+
     private void SelectTool(EditorTool tool)
     {
         _currentTool = tool;
@@ -539,10 +543,39 @@ public sealed class EditorToolbar : Border
 
         switch (_currentTool)
         {
+            // 几何 / 画笔类：粗细 + 颜色
+            case EditorTool.Rectangle:
+            case EditorTool.Ellipse:
+            case EditorTool.Line:
+            case EditorTool.Polyline:
+            case EditorTool.Arrow:
+            case EditorTool.Pen:
+            case EditorTool.Highlighter:
+                AddThicknessChoices();
+                _optionsRow.Children.Add(Divider());
+                AddColorChoices();
+                break;
+
             case EditorTool.Text:
                 AddFontSizeChoices();
                 _optionsRow.Children.Add(Divider());
                 AddTextBackgroundChoices();
+                _optionsRow.Children.Add(Divider());
+                AddColorChoices();
+                break;
+
+            case EditorTool.Label:
+                AddFontSizeChoices();
+                _optionsRow.Children.Add(Divider());
+                AddColorChoices();
+                break;
+
+            case EditorTool.Number:
+                AddColorChoices();
+                break;
+
+            case EditorTool.Mosaic:
+                AddMosaicChoices();
                 break;
 
             case EditorTool.Watermark:
@@ -583,6 +616,109 @@ public sealed class EditorToolbar : Border
         if (_currentTool == EditorTool.Text)
         {
             SelectTextBackground(ResolveLayer()?.DrawingStyle.TextBackground ?? TextBackgroundKind.None);
+        }
+    }
+
+    /// <summary>调色板选项（每个工具自己的参数行里都会出现）。</summary>
+    private void AddColorChoices()
+    {
+        _optionsRow.Children.Add(MakeOptionLabel("颜色"));
+        _colorButtons.Clear();
+
+        var current = ResolveLayer()?.DrawingStyle.Color ?? Palette[0];
+
+        foreach (var color in Palette)
+        {
+            var value = color;
+            var swatch = new Button
+            {
+                Style = FindStyle("ColorSwatchButton"),
+                Background = new SolidColorBrush(color),
+                ToolTip = color.ToString(),
+                Tag = value == current ? "selected" : null,
+            };
+
+            swatch.Click += (_, _) =>
+            {
+                SelectColor(value);
+                ColorSelected?.Invoke(value);
+            };
+
+            _colorButtons[value] = swatch;
+            _optionsRow.Children.Add(swatch);
+        }
+    }
+
+    /// <summary>线宽选项（几何/画笔类工具用）。</summary>
+    private void AddThicknessChoices()
+    {
+        _optionsRow.Children.Add(MakeOptionLabel("粗细"));
+        _thicknessButtons.Clear();
+
+        var current = ResolveLayer()?.DrawingStyle.Thickness ?? 4;
+
+        foreach (var thickness in ThicknessChoices)
+        {
+            var value = thickness;
+            var dot = new Border
+            {
+                Width = 4 + thickness * 1.4,
+                Height = 4 + thickness * 1.4,
+                CornerRadius = new CornerRadius(99),
+                Background = Brush("ToolbarForegroundBrush", Colors.White),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            var button = new Button
+            {
+                Content = dot,
+                Width = 30,
+                Height = 24,
+                Style = FindStyle("ToolbarButton"),
+                ToolTip = $"线宽 {thickness}（滚轮可调）",
+            };
+
+            button.Click += (_, _) =>
+            {
+                SelectThickness(value);
+                ThicknessSelected?.Invoke(value);
+                ResolveLayer()?.Focus();
+            };
+
+            _thicknessButtons[value] = button;
+            _optionsRow.Children.Add(button);
+        }
+
+        SelectThickness(current);
+    }
+
+    /// <summary>马赛克强度（块大小）。</summary>
+    private void AddMosaicChoices()
+    {
+        _optionsRow.Children.Add(MakeOptionLabel("强度"));
+
+        var current = ResolveLayer()?.MosaicBlockSize ?? 10;
+        foreach (var size in MosaicChoices)
+        {
+            var value = size;
+            var label = size switch
+            {
+                6 => "细",
+                16 => "粗",
+                _ => "标准",
+            };
+
+            var button = MakeOptionButton(label, $"马赛克块 {size}px",
+                () =>
+                {
+                    if (ResolveLayer() is { } layer)
+                    {
+                        layer.MosaicBlockSize = value;
+                    }
+                }, 44, () => current == value ? "selected" : null);
+
+            _optionsRow.Children.Add(button);
         }
     }
 

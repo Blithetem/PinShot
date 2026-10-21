@@ -119,6 +119,13 @@ public partial class App : Application
             return;
         }
 
+        // 自检入口：每个工具的专属参数行
+        if (e.Args.Contains("--toolbar-options-test", StringComparer.OrdinalIgnoreCase))
+        {
+            RunToolbarOptionsSelfTest();
+            return;
+        }
+
         // 自检入口：贴图管理（生命周期 / 历史 / 分组 / 图像处理）
         if (e.Args.Contains("--pin-manager-test", StringComparer.OrdinalIgnoreCase))
         {
@@ -1145,6 +1152,94 @@ public partial class App : Application
             var directory = Path.Combine(Path.GetTempPath(), "pinshot-selftest");
             Directory.CreateDirectory(directory);
             return directory;
+        }
+    }
+
+    /// <summary>自检：逐工具渲染参数行，确认「矩形→粗细+颜色」「文字→字号+颜色」等按工具切换。</summary>
+    private void RunToolbarOptionsSelfTest()
+    {
+        try
+        {
+            const int width = 900;
+            const int height = 640;
+
+            var source = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+            var visual = new DrawingVisual();
+            using (var dc = visual.RenderOpen())
+            {
+                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0xF5, 0xF6, 0xF8)), null,
+                    new Rect(0, 0, width, height));
+            }
+
+            source.Render(visual);
+            source.Freeze();
+
+            var window = new ImageEditorWindow(source);
+            window.Show();
+
+            var tools = new[]
+            {
+                (EditorTool.Rectangle, "rectangle"),
+                (EditorTool.Text, "text"),
+                (EditorTool.Mosaic, "mosaic"),
+            };
+            var index = 0;
+
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
+            timer.Tick += (_, _) =>
+            {
+                if (window.Content is not FrameworkElement root)
+                {
+                    timer.Stop();
+                    window.Close();
+                    return;
+                }
+
+                var toolbar = FindChild<EditorToolbar>(root);
+                if (toolbar is null)
+                {
+                    WriteLog("ToolbarOptionsSelfTest", new InvalidOperationException("找不到 EditorToolbar"));
+                    timer.Stop();
+                    window.Close();
+                    return;
+                }
+
+                if (index >= tools.Length)
+                {
+                    timer.Stop();
+                    window.Close();
+                    return;
+                }
+
+                var (tool, name) = tools[index++];
+                toolbar.SelectToolForTest(tool);
+
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    var dpi = VisualTreeHelper.GetDpi(window);
+                    var w = Math.Max((int)Math.Ceiling(root.ActualWidth * dpi.DpiScaleX), 1);
+                    var h = Math.Max((int)Math.Ceiling(root.ActualHeight * dpi.DpiScaleY), 1);
+                    var shot = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+                    shot.Render(root);
+
+                    var path = Path.Combine(SelfTestDirectory, $"toolbar-{name}.png");
+                    SavePng(shot, path);
+                    WriteInfo($"工具参数行自检: {tool} -> {path}");
+                }), DispatcherPriority.Loaded);
+            };
+
+            window.Closed += (_, _) =>
+            {
+                WriteInfo("工具参数行自检: 完成");
+                Shutdown();
+            };
+
+            timer.Start();
+        }
+        catch (Exception ex)
+        {
+            WriteLog("ToolbarOptionsSelfTest", ex);
+            Shutdown();
         }
     }
 
