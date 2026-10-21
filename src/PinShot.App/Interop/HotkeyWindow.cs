@@ -23,12 +23,6 @@ public sealed class HotkeyWindow : IDisposable
         (Native.MOD_CONTROL | Native.MOD_ALT, 0x53, "Ctrl+Alt+S"),
     };
 
-    // PixPin 习惯键位：Ctrl+1 截图。与上面的主热键并存，谁注册成功都能触发截图。
-    private static readonly (uint Modifiers, uint VirtualKey, string Display)[] ExtraScreenshotCandidates =
-    {
-        (Native.MOD_CONTROL, 0x31, "Ctrl+1"),
-    };
-
     private static readonly (uint Modifiers, uint VirtualKey, string Display)[] PinCandidates =
     {
         (Native.MOD_CONTROL, 0x32, "Ctrl+2"),
@@ -72,7 +66,12 @@ public sealed class HotkeyWindow : IDisposable
     /// <summary>恢复贴图热键组合，注册失败时为空。</summary>
     public string RestorePinHotkeyDisplay { get; } = string.Empty;
 
-    public HotkeyWindow()
+    /// <summary>
+    /// 注册全局热键。优先使用传入的配置值，注册失败时回退到内置候选组合，
+    /// 保证即使用户配置了一个被占用/非法的键也不会失去截图入口。
+    /// </summary>
+    public HotkeyWindow(string? captureHotkey = null, string? pinHotkey = null,
+        string? restorePinHotkey = null, string? recordHotkey = null)
     {
         var parameters = new HwndSourceParameters("PinShotHotkeyWindow")
         {
@@ -85,7 +84,8 @@ public sealed class HotkeyWindow : IDisposable
         _source = new HwndSource(parameters);
         _source.AddHook(WndProc);
 
-        if (TryRegister(_source.Handle, ScreenshotHotkeyId, ScreenshotCandidates, out var screenshot))
+        if (TryRegisterPreferred(_source.Handle, ScreenshotHotkeyId, captureHotkey,
+                ScreenshotCandidates, out var screenshot))
         {
             HotkeyDisplay = screenshot;
         }
@@ -94,25 +94,46 @@ public sealed class HotkeyWindow : IDisposable
             _source.RemoveHook(WndProc);
             _source.Dispose();
             throw new InvalidOperationException(
-                "截图热键注册失败（Ctrl+Shift+S / Ctrl+Shift+X / Ctrl+Alt+S 均被占用），请通过托盘菜单截图。");
+                "截图热键注册失败（配置组合和内置候选都被占用），请通过托盘菜单截图。");
         }
 
         // 附加的 PixPin 习惯键位，注册不上不影响主流程
-        TryRegister(_source.Handle, ExtraScreenshotHotkeyId, ExtraScreenshotCandidates, out _);
+        if (HotkeyParser.TryParse("Ctrl+1", out var extraMods, out var extraKey) &&
+            !string.Equals(captureHotkey, "Ctrl+1", StringComparison.OrdinalIgnoreCase))
+        {
+            Native.RegisterHotKey(_source.Handle, ExtraScreenshotHotkeyId,
+                extraMods | Native.MOD_NOREPEAT, extraKey);
+        }
 
-        RecordHotkeyDisplay = TryRegister(_source.Handle, RecordHotkeyId, RecordCandidates, out var record)
+        RecordHotkeyDisplay = TryRegisterPreferred(_source.Handle, RecordHotkeyId, recordHotkey,
+            RecordCandidates, out var record)
             ? record
             : "托盘菜单";
 
-        if (TryRegister(_source.Handle, PinHotkeyId, PinCandidates, out var pin))
+        if (TryRegisterPreferred(_source.Handle, PinHotkeyId, pinHotkey, PinCandidates, out var pin))
         {
             PinHotkeyDisplay = pin;
         }
 
-        if (TryRegister(_source.Handle, RestorePinHotkeyId, RestorePinCandidates, out var restore))
+        if (TryRegisterPreferred(_source.Handle, RestorePinHotkeyId, restorePinHotkey,
+                RestorePinCandidates, out var restore))
         {
             RestorePinHotkeyDisplay = restore;
         }
+    }
+
+    /// <summary>先试用户配置的组合，失败再按内置候选逐个尝试。</summary>
+    private static bool TryRegisterPreferred(IntPtr handle, int id, string? preferred,
+        (uint Modifiers, uint VirtualKey, string Display)[] fallbacks, out string display)
+    {
+        if (HotkeyParser.TryParse(preferred, out var modifiers, out var virtualKey) &&
+            Native.RegisterHotKey(handle, id, modifiers | Native.MOD_NOREPEAT, virtualKey))
+        {
+            display = preferred!;
+            return true;
+        }
+
+        return TryRegister(handle, id, fallbacks, out display);
     }
 
     private static bool TryRegister(IntPtr handle, int id,

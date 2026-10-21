@@ -41,6 +41,9 @@ public partial class App : Application
     {
         RegisterCrashHandlers();
 
+        // 载入用户配置（热键 / 保存目录 / 默认格式等），缺失时用默认值
+        var settings = AppSettings.Load();
+
         // 命令行模式：不创建托盘与热键，执行完命令即退出
         var cli = CliOptions.Parse(e.Args);
         if (cli.Command != CliCommand.None)
@@ -100,6 +103,13 @@ public partial class App : Application
         if (e.Args.Contains("--decorate-test", StringComparer.OrdinalIgnoreCase))
         {
             RunDecorateSelfTest();
+            return;
+        }
+
+        // 自检入口：设置窗口（热键解析 + UI 渲染）
+        if (e.Args.Contains("--settings-test", StringComparer.OrdinalIgnoreCase))
+        {
+            RunSettingsSelfTest();
             return;
         }
 
@@ -178,7 +188,8 @@ public partial class App : Application
 
         try
         {
-            _hotkey = new HotkeyWindow();
+            _hotkey = new HotkeyWindow(settings.CaptureHotkey, settings.PinHotkey,
+                settings.RestorePinHotkey, settings.RecordHotkey);
             hotkeyDisplay = _hotkey.HotkeyDisplay;
             recordHotkeyDisplay = _hotkey.RecordHotkeyDisplay;
             _hotkey.HotkeyPressed += BeginCapture;
@@ -198,7 +209,7 @@ public partial class App : Application
 
         _tray = new TrayService(hotkeyDisplay, recordHotkeyDisplay,
             new TrayActions(BeginCapture, BeginLongShot, BeginGif, BeginRecord, ExitApplication,
-                CloseAllPins, DestroyAllPins, BringPinsOnScreen));
+                CloseAllPins, DestroyAllPins, BringPinsOnScreen, OpenSettings));
 
         StartActivateListener();
         ShowToast("PinShot 已启动",
@@ -580,6 +591,25 @@ public partial class App : Application
         }
     }
 
+    /// <summary>托盘「设置...」：热键、保存目录/格式、截图默认行为。</summary>
+    private void OpenSettings()
+    {
+        try
+        {
+            var window = new SettingsWindow(AppSettings.Current);
+            if (window.ShowDialog() == true && window.HotkeysChanged)
+            {
+                ShowToast("热键已保存", "重启 PinShot 后生效");
+            }
+        }
+        catch (Exception ex)
+        {
+            WriteLog("OpenSettings", ex);
+            MessageBox.Show($"打开设置失败：{ex.Message}", "PinShot", MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
     private void CloseAllPins()
     {
         try
@@ -646,7 +676,7 @@ public partial class App : Application
 
     private void SaveImage(BitmapSource image)
     {
-        var dialog = new SaveImageDialog();
+        var dialog = new SaveImageDialog(AppSettings.Current);
         if (dialog.ShowDialog() != true)
         {
             return;
@@ -1109,6 +1139,57 @@ public partial class App : Application
             var directory = Path.Combine(Path.GetTempPath(), "pinshot-selftest");
             Directory.CreateDirectory(directory);
             return directory;
+        }
+    }
+
+    /// <summary>自检：设置窗口 + 热键解析。</summary>
+    private void RunSettingsSelfTest()
+    {
+        try
+        {
+            var probe = new AppSettings
+            {
+                CaptureHotkey = "Ctrl+Alt+Shift+P",
+                DefaultFormat = "jpg",
+                JpegQuality = 75,
+            };
+
+            var parsed = HotkeyParser.TryParse(probe.CaptureHotkey, out var modifiers, out var key);
+
+            var window = new SettingsWindow(probe);
+            window.Closed += (_, _) => Shutdown();
+            window.Show();
+
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop();
+
+                if (window.Content is FrameworkElement root)
+                {
+                    var dpi = VisualTreeHelper.GetDpi(window);
+                    var width = Math.Max((int)Math.Ceiling(root.ActualWidth * dpi.DpiScaleX), 1);
+                    var height = Math.Max((int)Math.Ceiling(root.ActualHeight * dpi.DpiScaleY), 1);
+
+                    var shot = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+                    shot.Render(root);
+
+                    var path = Path.Combine(SelfTestDirectory, "settings-window.png");
+                    SavePng(shot, path);
+
+                    WriteInfo($"设置自检: 窗口={root.ActualWidth:F0}x{root.ActualHeight:F0} " +
+                              $"热键解析={parsed} mods=0x{modifiers:X} vk=0x{key:X} " +
+                              $"格式={probe.DefaultFormat} 质量={probe.JpegQuality} 截图={path}");
+                }
+
+                window.Close();
+            };
+            timer.Start();
+        }
+        catch (Exception ex)
+        {
+            WriteLog("SettingsSelfTest", ex);
+            Shutdown();
         }
     }
 

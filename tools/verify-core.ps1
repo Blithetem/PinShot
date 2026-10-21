@@ -43,6 +43,7 @@ $tests = @(
     @{ Name = 'CLI 全屏截图'; Args = @('--capture-full', '--output', $fullShot); Timeout = 40; File = $fullShot },
     @{ Name = 'CLI 选区截图'; Args = @('--capture-region', '--region', '100,100,800,600', '--output', $regionShot); Timeout = 40; File = $regionShot },
     @{ Name = '截图装饰'; Args = @('--decorate-test'); Timeout = 40; Expect = '装饰自检' },
+    @{ Name = '设置窗口'; Args = @('--settings-test'); Timeout = 40; Expect = '设置自检' },
     @{ Name = '贴图管理'; Args = @('--pin-manager-test'); Timeout = 90; Expect = 'RESULT PASS' },
     @{ Name = '长图编辑器'; Args = @('--editor-test'); Timeout = 40; Expect = '未裁剪=True' },
     @{ Name = '长截图拼接'; Args = @('--longshot-test'); Timeout = 90; Expect = '长截图自检' },

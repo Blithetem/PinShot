@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
+using PinShot.App.Services;
 
 namespace PinShot.App.Editor;
 
@@ -15,11 +16,17 @@ public enum SaveImageFormat
 /// <summary>保存对话框：格式选择（PNG/JPEG/BMP）+ JPEG 质量 + 路径。</summary>
 public partial class SaveImageDialog : Window
 {
-    public SaveImageDialog()
+    private readonly AppSettings _settings;
+
+    public SaveImageDialog(AppSettings? settings = null)
     {
         InitializeComponent();
 
-        FormatBox.SelectedIndex = 0;
+        _settings = settings ?? AppSettings.Current;
+
+        SelectFormat(_settings.DefaultFormat);
+        QualitySlider.Value = Math.Clamp(_settings.JpegQuality, 10, 100);
+        QualityText.Text = ((int)QualitySlider.Value).ToString();
         UpdateQualityVisibility();
         UpdateDefaultPath();
 
@@ -45,6 +52,16 @@ public partial class SaveImageDialog : Window
         SaveImageFormat.Bmp => ".bmp",
         _ => ".png",
     };
+
+    private void SelectFormat(string format)
+    {
+        FormatBox.SelectedIndex = format switch
+        {
+            "jpg" => 1,
+            "bmp" => 2,
+            _ => 0,
+        };
+    }
 
     private void OnFormatChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -82,7 +99,13 @@ public partial class SaveImageDialog : Window
             return;
         }
 
-        var folder = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+        // 优先用上次保存的目录，其次是配置里的默认目录，最后才是系统图片目录
+        var folder = _settings.LastSaveDirectory;
+        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+        {
+            folder = _settings.ResolveSaveDirectory();
+        }
+
         if (string.IsNullOrWhiteSpace(folder))
         {
             folder = Path.GetTempPath();
@@ -157,6 +180,22 @@ public partial class SaveImageDialog : Window
         FilePath = path;
         Format = CurrentFormat;
         Quality = (int)QualitySlider.Value;
+
+        // 记住这次保存的目录，下次直接定位到这里
+        try
+        {
+            var directory = Path.GetDirectoryName(Path.GetFullPath(path));
+            if (!string.IsNullOrEmpty(directory))
+            {
+                _settings.LastSaveDirectory = directory;
+                _settings.Save();
+            }
+        }
+        catch
+        {
+            // 记录目录失败不影响保存
+        }
+
         DialogResult = true;
     }
 
