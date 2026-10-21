@@ -377,6 +377,15 @@ public partial class CaptureOverlay : Window
             _activeHandle = Handle.None;
             ReleaseMouseCapture();
             e.Handled = true;
+
+            // 选择模式下双击选区 = 直接复制到剪贴板并关闭（对齐 PixPin）
+            if (e.ClickCount >= 2 && _currentTool == EditorTool.None &&
+                _selection is { } doubleClicked &&
+                ToDipRect(doubleClicked).Contains(e.GetPosition(this)))
+            {
+                Complete(CaptureAction.Copy);
+            }
+
             return;
         }
 
@@ -880,7 +889,7 @@ public partial class CaptureOverlay : Window
         EditorCanvas.Children.Add(_toolbar);
         PositionToolbar(dip);
 
-        TipText.Text = "直接拖动选区内部可整体挪动范围 · 拖手柄改大小 · 选工具后开始标注 · Enter 复制 · Esc 取消";
+        TipText.Text = "拖动选区内部可整体挪移 · 双击复制 · 拖手柄改大小 · 选工具后标注 · Enter 复制 · Esc 取消";
         _annotationLayer.Focus();
         UpdateToolbarState();
         UpdateHandles();
