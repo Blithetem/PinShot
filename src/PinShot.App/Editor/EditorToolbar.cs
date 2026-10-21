@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
@@ -55,6 +56,13 @@ public sealed class EditorToolbar : Border
     private readonly Dictionary<EditorTool, Button> _toolButtons = new();
     private readonly Dictionary<Color, Button> _colorButtons = new();
     private readonly Dictionary<double, Button> _thicknessButtons = new();
+    private Popup? _colorPopup;
+    private Popup? _thicknessPopup;
+    private Border? _colorDot;
+    private Border? _thicknessDot;
+
+    /// <summary>线宽可选项（二级面板）。</summary>
+    private static readonly double[] ThicknessChoices = { 2, 4, 7, 12 };
     private readonly Dictionary<TextBackgroundKind, Button> _textBackgroundButtons = new();
     private readonly Button _undoButton;
     private readonly Button _redoButton;
@@ -125,16 +133,9 @@ public sealed class EditorToolbar : Border
 
         drawGroup.Children.Add(Divider());
 
-        foreach (var color in Palette)
-        {
-            AddColor(drawGroup, color);
-        }
-
-        drawGroup.Children.Add(Divider());
-
-        AddThickness(drawGroup, 2);
-        AddThickness(drawGroup, 4);
-        AddThickness(drawGroup, 7);
+        // 颜色和线宽收进二级面板（对齐飞书）：主工具条只保留两个入口按钮
+        drawGroup.Children.Add(CreateColorPicker());
+        drawGroup.Children.Add(CreateThicknessPicker());
 
         drawGroup.Children.Add(Divider());
 
@@ -304,6 +305,124 @@ public sealed class EditorToolbar : Border
         panel.Children.Add(button);
     }
 
+    /// <summary>颜色入口按钮：点开是调色板二级面板。</summary>
+    private Button CreateColorPicker()
+    {
+        _colorDot = new Border
+        {
+            Width = 16,
+            Height = 16,
+            CornerRadius = new CornerRadius(99),
+            Background = new SolidColorBrush(Palette[0]),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        var wrap = new WrapPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Width = 4 * 30,
+        };
+
+        foreach (var color in Palette)
+        {
+            AddColor(wrap, color);
+        }
+
+        var panel = new Border
+        {
+            Background = Brush("ToolbarBackgroundBrush", Color.FromArgb(0xF2, 0x1C, 0x1C, 0x1F)),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(8, 6, 8, 6),
+            Effect = new DropShadowEffect
+            {
+                BlurRadius = 18,
+                ShadowDepth = 2,
+                Direction = 270,
+                Opacity = 0.5,
+            },
+            Child = wrap,
+        };
+
+        _colorPopup = new Popup
+        {
+            Child = panel,
+            StaysOpen = false,
+            AllowsTransparency = true,
+            Placement = PlacementMode.Top,
+            VerticalOffset = -8,
+            HorizontalOffset = -40,
+        };
+
+        var button = MakeButton(_colorDot, "颜色（点开选择）", () =>
+        {
+            if (_colorPopup is not null)
+            {
+                _colorPopup.IsOpen = !_colorPopup.IsOpen;
+            }
+        }, "ToolbarButton");
+
+        _colorPopup.PlacementTarget = button;
+        return button;
+    }
+
+    /// <summary>线宽入口按钮：点开是线宽二级面板。</summary>
+    private Button CreateThicknessPicker()
+    {
+        _thicknessDot = new Border
+        {
+            Width = 4 + 4 * 1.4,
+            Height = 4 + 4 * 1.4,
+            CornerRadius = new CornerRadius(99),
+            Background = Brush("ToolbarForegroundBrush", Colors.White),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        var panel = new StackPanel { Orientation = Orientation.Horizontal };
+
+        foreach (var thickness in ThicknessChoices)
+        {
+            AddThickness(panel, thickness);
+        }
+
+        var border = new Border
+        {
+            Background = Brush("ToolbarBackgroundBrush", Color.FromArgb(0xF2, 0x1C, 0x1C, 0x1F)),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(8, 6, 8, 6),
+            Effect = new DropShadowEffect
+            {
+                BlurRadius = 18,
+                ShadowDepth = 2,
+                Direction = 270,
+                Opacity = 0.5,
+            },
+            Child = panel,
+        };
+
+        _thicknessPopup = new Popup
+        {
+            Child = border,
+            StaysOpen = false,
+            AllowsTransparency = true,
+            Placement = PlacementMode.Top,
+            VerticalOffset = -8,
+            HorizontalOffset = -20,
+        };
+
+        var button = MakeButton(_thicknessDot, "线宽（点开选择，滚轮可调）", () =>
+        {
+            if (_thicknessPopup is not null)
+            {
+                _thicknessPopup.IsOpen = !_thicknessPopup.IsOpen;
+            }
+        }, "ToolbarButton");
+
+        _thicknessPopup.PlacementTarget = button;
+        return button;
+    }
+
     private void AddColor(Panel panel, Color color)
     {
         var button = new Button
@@ -318,6 +437,11 @@ public sealed class EditorToolbar : Border
         {
             SelectColor(color);
             ColorSelected?.Invoke(color);
+
+            if (_colorPopup is not null)
+            {
+                _colorPopup.IsOpen = false;
+            }
         };
 
         _colorButtons[color] = button;
@@ -348,6 +472,11 @@ public sealed class EditorToolbar : Border
             SelectThickness(thickness);
             ThicknessSelected?.Invoke(thickness);
             ResolveLayer()?.Focus();
+
+            if (_thicknessPopup is not null)
+            {
+                _thicknessPopup.IsOpen = false;
+            }
         };
 
         _thicknessButtons[thickness] = button;
@@ -369,6 +498,13 @@ public sealed class EditorToolbar : Border
 
     private void SelectColor(Color color)
     {
+        if (_colorDot is not null)
+        {
+            var brush = new SolidColorBrush(color);
+            brush.Freeze();
+            _colorDot.Background = brush;
+        }
+
         foreach (var (key, button) in _colorButtons)
         {
             button.Tag = key == color ? "selected" : null;
@@ -377,6 +513,12 @@ public sealed class EditorToolbar : Border
 
     private void SelectThickness(double thickness)
     {
+        if (_thicknessDot is not null)
+        {
+            _thicknessDot.Width = 4 + thickness * 1.4;
+            _thicknessDot.Height = 4 + thickness * 1.4;
+        }
+
         var active = new SolidColorBrush(Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
         active.Freeze();
 
