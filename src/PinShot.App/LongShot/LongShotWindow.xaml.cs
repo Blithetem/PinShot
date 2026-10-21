@@ -188,9 +188,9 @@ public partial class LongShotWindow : Window
 
     private int _tickCount;
     private int _noProgress;
-    private int _scrollAccumulator;
-    private const int ScrollEveryTicks = 3;
-    private const int NoProgressLimit = 6;
+
+    /// <summary>连续多少次抓帧没有新内容就认为已经滚到底（180ms/次 ≈ 5 秒）。</summary>
+    private const int NoProgressLimit = 30;
 
     private void OnTick(object? sender, EventArgs e)
     {
@@ -220,6 +220,14 @@ public partial class LongShotWindow : Window
         else
         {
             _noProgress++;
+        }
+
+        // 已经拼到内容且长时间没有新内容：认为到底了，自动收尾，避免一直空抓帧
+        if (_noProgress >= NoProgressLimit && _session.CurrentHeight > _region.Height)
+        {
+            Log($"连续 {_noProgress} 次无新内容，自动完成（已拼接 {_session.CurrentHeight} px）");
+            Finish();
+            return;
         }
 
         if (_tickCount % 8 == 0)

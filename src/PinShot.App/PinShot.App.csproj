@@ -29,17 +29,4 @@
     <PackageReference Include="SharpAvi" Version="3.0.1" />
   </ItemGroup>
 
-
-  <!-- 精简 OCR 输出：删除不使用的语言/表格模型，保留中文 v6_small -->
-  <Target Name="TrimOcrArtifacts" AfterTargets="Build">
-    <ItemGroup>
-      <OcrTrimFiles Include="$(OutDir)inference\PP-OCRv6_tiny_det_infer\**" />
-      <OcrTrimFiles Include="$(OutDir)inference\PP-OCRv6_tiny_rec_infer\**" />
-      <OcrTrimFiles Include="$(OutDir)inference\en_PP-OCRv5_mobile_rec_infer\**" />
-      <OcrTrimFiles Include="$(OutDir)inference\SLANet_infer\**" />
-    </ItemGroup>
-    <Delete Files="@(OcrTrimFiles)" />
-    <RemoveDir Directories="$(OutDir)inference\PP-OCRv6_tiny_det_infer;$(OutDir)inference\PP-OCRv6_tiny_rec_infer;$(OutDir)inference\en_PP-OCRv5_mobile_rec_infer;$(OutDir)inference\SLANet_infer" />
-  </Target>
-
 </Project>
