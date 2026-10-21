@@ -4,6 +4,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using PinShot.App.Capture;
+using PinShot.App.Services;
 
 namespace PinShot.App.Cli;
 
@@ -150,31 +151,75 @@ internal static class CliFastPath
         return bitmap;
     }
 
+    /// <summary>
+    /// 输出结果：
+    /// 1) 指定了 --output → 存到该路径；
+    /// 2) 指定了 --clipboard → 复制到剪贴板；
+    /// 3) 都没给 → 存到设置里的默认目录 + 时间戳文件名，和截图界面保存的默认路径一致。
+    /// </summary>
     private static int Deliver(Bitmap bitmap, CliOptions options)
     {
-        var saved = false;
+        var settings = AppSettings.Load();
 
         if (!string.IsNullOrWhiteSpace(options.Output))
         {
             var path = Path.GetFullPath(options.Output);
-            var directory = Path.GetDirectoryName(path);
-            if (!string.IsNullOrEmpty(directory))
+            SaveBitmap(bitmap, path, settings);
+            WriteLine(path);
+
+            if (options.Clipboard)
             {
-                Directory.CreateDirectory(directory);
+                System.Windows.Forms.Clipboard.SetImage(bitmap);
             }
 
-            bitmap.Save(path, ImageFormat.Png);
-            saved = true;
-            WriteLine(path);
+            return 0;
         }
 
-        if (options.Clipboard || !saved)
+        if (options.Clipboard)
         {
             System.Windows.Forms.Clipboard.SetImage(bitmap);
-            WriteLine("copied");
+            WriteLine("clipboard");
+            return 0;
         }
 
+        var saved = settings.BuildDefaultFilePath();
+        SaveBitmap(bitmap, saved, settings);
+        WriteLine(saved);
         return 0;
+    }
+
+    /// <summary>按扩展名选择编码器（png / jpg / bmp），JPG 用配置里的质量。</summary>
+    private static void SaveBitmap(Bitmap bitmap, string path, AppSettings settings)
+    {
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        switch (Path.GetExtension(path).ToLowerInvariant())
+        {
+            case ".jpg":
+            case ".jpeg":
+                var encoder = ImageCodecInfo.GetImageEncoders()
+                    .First(codec => codec.FormatID == ImageFormat.Jpeg.Guid);
+                using (var parameters = new EncoderParameters(1))
+                {
+                    parameters.Param[0] = new EncoderParameter(Encoder.Quality,
+                        (long)Math.Clamp(settings.JpegQuality, 10, 100));
+                    bitmap.Save(path, encoder, parameters);
+                }
+
+                break;
+
+            case ".bmp":
+                bitmap.Save(path, ImageFormat.Bmp);
+                break;
+
+            default:
+                bitmap.Save(path, ImageFormat.Png);
+                break;
+        }
     }
 
     private static void AttachToParentConsole()
@@ -187,6 +232,16 @@ internal static class CliFastPath
         if (AttachConsole(AttachParentProcess))
         {
             _consoleAttached = true;
+
+            // 让中文路径在 CMD / PowerShell 里正常显示
+            try
+            {
+                Console.OutputEncoding = System.Text.Encoding.UTF8;
+            }
+            catch
+            {
+                // 控制台不支持时忽略
+            }
         }
     }
 

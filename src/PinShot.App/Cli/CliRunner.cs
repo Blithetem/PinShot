@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Media.Imaging;
 using PinShot.App.Capture;
 using PinShot.App.Pin;
+using PinShot.App.Services;
 
 namespace PinShot.App.Cli;
 
@@ -30,6 +31,16 @@ public static class CliRunner
         if (AttachConsole(AttachParentProcess))
         {
             _consoleAttached = true;
+
+            // 让中文路径在 CMD / PowerShell 里正常显示
+            try
+            {
+                Console.OutputEncoding = System.Text.Encoding.UTF8;
+            }
+            catch
+            {
+                // 控制台不支持时忽略
+            }
         }
     }
 
@@ -212,30 +223,61 @@ public static class CliRunner
         return bitmap;
     }
 
+    /// <summary>
+    /// 输出结果：
+    /// 1) 指定了 --output → 存到该路径；
+    /// 2) 指定了 --clipboard → 复制到剪贴板；
+    /// 3) 都没给 → 存到设置里的默认目录 + 时间戳文件名，和截图界面里保存的默认路径一致。
+    /// </summary>
     private static void Deliver(BitmapSource image, CliOptions options)
     {
-        var saved = false;
+        var settings = AppSettings.Load();
 
         if (!string.IsNullOrWhiteSpace(options.Output))
         {
-            var directory = Path.GetDirectoryName(Path.GetFullPath(options.Output));
-            if (!string.IsNullOrEmpty(directory))
+            var path = Path.GetFullPath(options.Output);
+            SaveImage(image, path, settings);
+            WriteLine(path);
+
+            if (options.Clipboard)
             {
-                Directory.CreateDirectory(directory);
+                Clipboard.SetImage(image);
             }
 
-            var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(image));
-            using var stream = File.Create(options.Output);
-            encoder.Save(stream);
-            saved = true;
-            WriteLine(Path.GetFullPath(options.Output));
+            return;
         }
 
-        if (options.Clipboard || !saved)
+        if (options.Clipboard)
         {
             Clipboard.SetImage(image);
-            WriteLine(saved ? "clipboard" : "clipboard");
+            WriteLine("clipboard");
+            return;
         }
+
+        var saved = settings.BuildDefaultFilePath();
+        SaveImage(image, saved, settings);
+        WriteLine(saved);
+    }
+
+    /// <summary>按扩展名选择编码器（png / jpg / bmp），JPG 用配置里的质量。</summary>
+    private static void SaveImage(BitmapSource image, string path, AppSettings settings)
+    {
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        BitmapEncoder encoder = Path.GetExtension(path).ToLowerInvariant() switch
+        {
+            ".jpg" or ".jpeg" => new JpegBitmapEncoder { QualityLevel = settings.JpegQuality },
+            ".bmp" => new BmpBitmapEncoder(),
+            _ => new PngBitmapEncoder(),
+        };
+
+        encoder.Frames.Add(BitmapFrame.Create(image));
+
+        using var stream = File.Create(path);
+        encoder.Save(stream);
     }
 }

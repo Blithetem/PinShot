@@ -141,4 +141,31 @@ public sealed class AppSettings
 
         return directory;
     }
+
+    /// <summary>
+    /// 默认保存路径：默认目录 + 「截图_时间戳」+ 默认格式。
+    /// 和截图界面里保存对话框给出的默认文件名完全一致，命令行不给 -o 时也用它。
+    /// </summary>
+    public string BuildDefaultFilePath()
+    {
+        var directory = ResolveSaveDirectory();
+        var extension = DefaultFormat switch
+        {
+            "jpg" => ".jpg",
+            "bmp" => ".bmp",
+            _ => ".png",
+        };
+
+        var name = $"截图_{DateTime.Now:yyyyMMdd_HHmmss}{extension}";
+        var path = Path.Combine(directory, name);
+
+        // 同一秒内多次调用时避免互相覆盖
+        if (File.Exists(path))
+        {
+            path = Path.Combine(directory,
+                $"截图_{DateTime.Now:yyyyMMdd_HHmmss}_{DateTime.Now.Millisecond:D3}{extension}");
+        }
+
+        return path;
+    }
 }

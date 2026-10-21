@@ -145,12 +145,15 @@ public sealed class CliOptions
         PinShot 命令行用法：
 
           PinShot.exe --capture-full [--output <文件>] [--clipboard] [--delay <毫秒>]
-              截取整个虚拟屏幕。--output 保存为 PNG；--clipboard 复制到剪贴板；
-              两者都不给时默认复制到剪贴板。
+              截取整个虚拟屏幕。
+              不给 --output 也不给 --clipboard 时，按「设置」里的默认目录和格式保存，
+              文件名形如 截图_20261021_171530.png（与截图界面 Ctrl+S 的默认路径一致），
+              并把完整路径打印到控制台。
 
           PinShot.exe --capture-region [--output <文件>] [--clipboard] [--delay <毫秒>]
+              打开交互式选区，框选后按同样的规则保存或复制。
+
           PinShot.exe --capture-region --region <x,y,w,h> [--output <文件>] [--clipboard]
-              打开交互式选区，确认后按参数保存或复制。
               带 --region 时不弹选区界面，直接截取指定矩形（物理像素，可负坐标）。
 
           PinShot.exe --pin <图片路径>
@@ -158,6 +161,9 @@ public sealed class CliOptions
 
           PinShot.exe --help
               显示本帮助。
+
+        保存目录与格式来自托盘菜单「设置...」，配置文件：
+          %LOCALAPPDATA%\PinShot\settings.json
 
         退出码：0 成功，1 参数或执行失败。
         """;
