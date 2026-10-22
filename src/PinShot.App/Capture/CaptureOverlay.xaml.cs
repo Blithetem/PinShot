@@ -372,15 +372,23 @@ public partial class CaptureOverlay : Window
             return;
         }
 
-        // 编辑态：选择模式下悬停在选区内部时给「可移动」光标
+        // 编辑态：按悬停位置给对应光标（手柄=双向箭头、选区内部=移动、其他=十字）
         if (_mode == OverlayMode.Editing)
         {
-            Cursor = _currentTool == EditorTool.None &&
-                     _selection is { } currentSelection &&
-                     ToDipRect(currentSelection).Contains(position) &&
-                     HitTestHandle(position) == Handle.None
-                ? Cursors.SizeAll
-                : Cursors.Cross;
+            var activeHandle = _activeHandle != Handle.None ? _activeHandle : HitTestHandle(position);
+            var inside = _selection is { } currentSelection && ToDipRect(currentSelection).Contains(position);
+            var canMove = _currentTool == EditorTool.None && inside;
+
+            Cursor = activeHandle switch
+            {
+                Handle.TopLeft or Handle.BottomRight => Cursors.SizeNWSE,
+                Handle.TopRight or Handle.BottomLeft => Cursors.SizeNESW,
+                Handle.Top or Handle.Bottom => Cursors.SizeNS,
+                Handle.Left or Handle.Right => Cursors.SizeWE,
+                Handle.Move => Cursors.SizeAll,
+                _ => canMove ? Cursors.SizeAll : Cursors.Cross,
+            };
+
             return;
         }
 
@@ -1030,14 +1038,17 @@ public partial class CaptureOverlay : Window
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Space && _mode == OverlayMode.Editing)
+        // 中文输入法激活时 e.Key 会变成 ImeProcessed，真实按键在 ImeProcessedKey 里
+        var key = e.Key == Key.ImeProcessed ? e.ImeProcessedKey : e.Key;
+
+        if (key == Key.Space && _mode == OverlayMode.Editing)
         {
             _spaceHeld = true;
             e.Handled = true;
             return;
         }
 
-        switch (e.Key)
+        switch (key)
         {
             case Key.Escape:
                 HandleEscape();
