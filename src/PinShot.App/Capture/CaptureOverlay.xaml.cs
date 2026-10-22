@@ -866,8 +866,9 @@ public partial class CaptureOverlay : Window
         if (_mode != OverlayMode.Selecting)
         {
             Magnifier.Visibility = Visibility.Collapsed;
-            CrossHorizontal.Visibility = Visibility.Collapsed;
-            CrossVertical.Visibility = Visibility.Collapsed;
+
+            // 十字线在编辑阶段也要保持，否则看不出鼠标在哪（暗色遮罩上黑箭头不可见）
+            UpdateCrosshair(position);
             return;
         }
 
@@ -951,8 +952,9 @@ public partial class CaptureOverlay : Window
         _mode = OverlayMode.Editing;
         _selection = selection;
         Magnifier.Visibility = Visibility.Collapsed;
-        CrossHorizontal.Visibility = Visibility.Collapsed;
-        CrossVertical.Visibility = Visibility.Collapsed;
+
+        // 十字线保留：编辑阶段鼠标箭头是黑色的，压在暗色遮罩上看不见
+        UpdateCrosshair(Mouse.GetPosition(this));
 
         var crop = new CroppedBitmap(_snapshot, selection);
         crop.Freeze();
@@ -1390,17 +1392,19 @@ public partial class CaptureOverlay : Window
         ShowTip(_showCursor ? "截图会包含鼠标指针" : "截图不包含鼠标指针");
     }
 
+    /// <summary>
+    /// 更新十字定位线。框选阶段和编辑阶段都显示：
+    /// 系统箭头是黑色的，压在暗色遮罩上几乎看不见，白色十字线在任何背景上都清晰。
+    /// </summary>
     private void UpdateCrosshair(Point position)
     {
-        if (_mode != OverlayMode.Selecting)
-        {
-            CrossHorizontal.Visibility = Visibility.Collapsed;
-            CrossVertical.Visibility = Visibility.Collapsed;
-            return;
-        }
-
         CrossHorizontal.Visibility = Visibility.Visible;
         CrossVertical.Visibility = Visibility.Visible;
+
+        // 编辑阶段调淡一些，避免干扰标注
+        var opacity = _mode == OverlayMode.Editing ? 0.45 : 1.0;
+        CrossHorizontal.Opacity = opacity;
+        CrossVertical.Opacity = opacity;
 
         CrossHorizontal.X1 = 0;
         CrossHorizontal.X2 = Math.Max(0, ActualWidth);
