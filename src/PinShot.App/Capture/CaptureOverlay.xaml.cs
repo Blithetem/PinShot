@@ -62,9 +62,6 @@ public partial class CaptureOverlay : Window
 
     /// <summary>鼠标当前悬停的手柄（决定显示哪个光标）。</summary>
     private Handle _hoverHandle = Handle.None;
-
-    /// <summary>截图开始前的系统光标句柄，整个截图过程优先沿用它。</summary>
-    private IntPtr _originalCursor;
     private Point _dragStartImagePoint;
     private Int32Rect _dragStartSelection;
     private bool _spaceHeld;
@@ -151,14 +148,6 @@ public partial class CaptureOverlay : Window
         UpdateMask(null);
         UpdateHandles();
 
-        // 接管光标：默认显示「截图前的光标样式」，只在手柄上换成双向箭头。
-        // 这样和 PixPin 一致，鼠标不会整个截图过程都变成十字或箭头。
-        var info = new CursorInfo { cbSize = Marshal.SizeOf<CursorInfo>() };
-        if (GetCursorInfo(ref info) && info.hCursor != IntPtr.Zero)
-        {
-            _originalCursor = info.hCursor;
-        }
-
         System.Windows.Interop.HwndSource.FromHwnd(handle)?.AddHook(WindowProc);
 
         // 用户按热键后通常不会先移动鼠标，这里主动探测一次光标下的窗口，
@@ -167,7 +156,7 @@ public partial class CaptureOverlay : Window
             System.Windows.Threading.DispatcherPriority.Background);
     }
 
-    /// <summary>窗口消息钩子：WM_SETCURSOR 时决定显示哪个光标。</summary>
+    /// <summary>窗口消息钩子：只在手柄上换双向箭头，其余交给系统默认处理（保证光标一定可见）。</summary>
     private IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (msg != Native.WM_SETCURSOR)
@@ -176,11 +165,13 @@ public partial class CaptureOverlay : Window
         }
 
         var cursorId = _mode == OverlayMode.Editing ? CursorIdForHandle(_hoverHandle) : 0;
+        if (cursorId == 0)
+        {
+            // 非手柄区域统一显示标准箭头：显式设置，避免 WPF/系统的窗口类光标为空导致"看不到鼠标"
+            cursorId = Native.IDC_ARROW;
+        }
 
-        var cursor = cursorId > 0
-            ? Native.LoadCursor(IntPtr.Zero, new IntPtr(cursorId))
-            : _originalCursor;
-
+        var cursor = Native.LoadCursor(IntPtr.Zero, new IntPtr(cursorId));
         if (cursor != IntPtr.Zero)
         {
             Native.SetCursor(cursor);

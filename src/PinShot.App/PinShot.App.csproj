@@ -13,7 +13,7 @@
     <RootNamespace>PinShot.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>AnyCPU;x64</Platforms>
-    <Version>0.2.1</Version>
+    <Version>0.2.2</Version>
     <!-- 自定义入口：先走不依�?WPF �?CLI 快速路径（App.xaml 因此改为 Page�?-->
     <StartupObject>PinShot.App.Program</StartupObject>
     <!-- WPF 需�?manifest 中的 PerMonitorV2 设置；WinForms 分析器建议改用项目属性，此处保留 manifest -->
