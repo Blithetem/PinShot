@@ -402,10 +402,6 @@ public partial class CaptureOverlay : Window
     {
         var position = e.GetPosition(this);
 
-        // 自绘鼠标指针跟随（系统光标在本窗口被设为 None，避免两个箭头重叠）
-        Canvas.SetLeft(PointerArrow, position.X);
-        Canvas.SetTop(PointerArrow, position.Y);
-
         // 记住鼠标最后一次停在选区内的位置，输出时用它画光标：
         // 用户按回车/点工具栏时鼠标可能已经移出选区，实时取位置会画不到。
         if (_selection is { } currentRegion && ToDipRect(currentRegion).Contains(position))
@@ -427,7 +423,7 @@ public partial class CaptureOverlay : Window
             return;
         }
 
-        // 编辑态：手柄上给系统双向箭头，其余位置用自绘箭头
+        // 编辑态：手柄上给系统双向箭头，其余位置保持普通箭头（由系统光标显示）
         if (_mode == OverlayMode.Editing)
         {
             var activeHandle = _activeHandle != Handle.None ? _activeHandle : HitTestHandle(position);
@@ -439,13 +435,8 @@ public partial class CaptureOverlay : Window
                 Handle.Top or Handle.Bottom => Cursors.SizeNS,
                 Handle.Left or Handle.Right => Cursors.SizeWE,
                 Handle.Move => Cursors.SizeAll,
-                _ => Cursors.None,
+                _ => Cursors.Arrow,
             };
-
-            // 手柄上让系统光标露出来，其它位置显示自绘箭头
-            PointerCanvas.Visibility = activeHandle == Handle.None
-                ? Visibility.Visible
-                : Visibility.Collapsed;
 
             return;
         }
@@ -1458,53 +1449,48 @@ public partial class CaptureOverlay : Window
                 imageY = selection.Y + selection.Height / 2.0;
             }
 
-            var info = new CursorInfo { cbSize = Marshal.SizeOf<CursorInfo>() };
-            if (!GetCursorInfo(ref info) || info.hCursor == IntPtr.Zero || (info.flags & 1) == 0)
+            // 自己画箭头，不再依赖系统光标句柄：
+            // 截图遮罩把窗口光标设成了 None，GetCursorInfo 拿不到可见光标，
+            // 用 DrawIconEx 会画不出来。这里用与界面完全相同的几何形状。
+            var localX = imageX - selection.X;
+            var localY = imageY - selection.Y;
+
+            // 按快照宽度缩放宽高，保证在不同 DPI / 分辨率下箭头大小一致
+            var drawScale = Math.Clamp(source.PixelWidth / 1280.0, 1.0, 2.0);
+
+            var visual = new DrawingVisual();
+            using (var dc = visual.RenderOpen())
             {
-                Log($"compose: no cursor handle (ok={GetCursorInfo(ref info)} flags={info.flags})");
-                return source;
+                dc.DrawImage(source, new Rect(0, 0, source.PixelWidth, source.PixelHeight));
+
+                dc.PushTransform(new TransformGroup
+                {
+                    Children =
+                    {
+                        new ScaleTransform(drawScale, drawScale),
+                        new TranslateTransform(localX / drawScale, localY / drawScale),
+                    },
+                });
+                dc.DrawGeometry(Brushes.White, new Pen(Brushes.Black, 1.2), PointerGeometry);
+                dc.Pop();
             }
 
-            var stride = source.PixelWidth * 4;
-            var pixels = new byte[stride * source.PixelHeight];
-            source.CopyPixels(pixels, stride, 0);
-
-            using var bitmap = new System.Drawing.Bitmap(source.PixelWidth, source.PixelHeight,
-                System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-            var data = bitmap.LockBits(
-                new System.Drawing.Rectangle(0, 0, source.PixelWidth, source.PixelHeight),
-                System.Drawing.Imaging.ImageLockMode.WriteOnly,
-                System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-            Marshal.Copy(pixels, 0, data.Scan0, pixels.Length);
-            bitmap.UnlockBits(data);
-
-            using (var graphics = System.Drawing.Graphics.FromImage(bitmap))
-            {
-                var hdc = graphics.GetHdc();
-                try
-                {
-                    DrawIconEx(hdc, (int)Math.Round(imageX - selection.X),
-                        (int)Math.Round(imageY - selection.Y),
-                        info.hCursor, 0, 0, 0, IntPtr.Zero, DI_NORMAL);
-                }
-                finally
-                {
-                    graphics.ReleaseHdc(hdc);
-                }
-            }
-
-            var converted = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
-                bitmap.GetHbitmap(), IntPtr.Zero, Int32Rect.Empty,
-                BitmapSizeOptions.FromEmptyOptions());
-            converted.Freeze();
-            Log($"compose: drawn at {imageX - selection.X:F0},{imageY - selection.Y:F0}");
-            return converted;
+            var target = new RenderTargetBitmap(source.PixelWidth, source.PixelHeight,
+                96, 96, PixelFormats.Pbgra32);
+            target.Render(visual);
+            target.Freeze();
+            Log($"compose: drawn arrow at {localX:F0},{localY:F0} scale={drawScale:F2}");
+            return target;
         }
         catch
         {
             return source;
         }
     }
+
+    /// <summary>鼠标箭头形状（界面自绘与截图合成共用）。</summary>
+    private static readonly Geometry PointerGeometry =
+        Geometry.Parse("M0,0 L0,17 L4.2,13 L6.8,19 L9.6,17.7 L7,11.8 L12.5,11.8 Z");
 
     [StructLayout(LayoutKind.Sequential)]
     private struct CursorInfo
