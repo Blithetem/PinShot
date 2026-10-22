@@ -50,15 +50,15 @@
                        FontSize="12" />
         </Border>
 
-        <!-- 自绘鼠标指针：放在最上层，不依赖系统光标是否显示 -->
-        <Canvas x:Name="PointerCanvas" IsHitTestVisible="False">
-            <Path x:Name="PointerArrow" Fill="#FFFFFFFF" Stroke="#FF000000" StrokeThickness="1.2"
-                  StrokeLineJoin="Round">
-                <Path.Data>
-                    <PathGeometry Figures="M0,0 L0,17 L4.2,13 L6.8,19 L9.6,17.7 L7,11.8 L12.5,11.8 Z" />
-                </Path.Data>
-            </Path>
-        </Canvas>
+        <!-- 真实光标预览：用 Image 显示 GetCursorInfo 拿到的当前光标位图，
+             跟随鼠标移动。截图前是箭头/I 形/手型，这里就是同样形状。 -->
+        <Image x:Name="CursorPreview" Stretch="None" IsHitTestVisible="False"
+               HorizontalAlignment="Left" VerticalAlignment="Top"
+               RenderOptions.BitmapScalingMode="NearestNeighbor">
+            <Image.RenderTransform>
+                <TranslateTransform x:Name="CursorPreviewTransform" />
+            </Image.RenderTransform>
+        </Image>
 
         <!-- 截图选项条：圆角、阴影、光标、比例 -->
         <StackPanel x:Name="OptionsBar" Orientation="Horizontal"

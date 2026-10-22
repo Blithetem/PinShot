@@ -62,6 +62,9 @@ public partial class CaptureOverlay : Window
 
     /// <summary>鼠标当前悬停的手柄（决定显示哪个光标）。</summary>
     private Handle _hoverHandle = Handle.None;
+
+    /// <summary>当前预览的光标句柄，变化时才重新渲染位图。</summary>
+    private IntPtr _previewCursorHandle;
     private Point _dragStartImagePoint;
     private Int32Rect _dragStartSelection;
     private bool _spaceHeld;
@@ -157,6 +160,9 @@ public partial class CaptureOverlay : Window
         // 之后鼠标在选区内移动会覆盖它；完成时若已经移出选区就用这个初始值。
         RememberInitialCursor();
 
+        // 初次进入时按当前鼠标位置摆好光标预览
+        UpdatePointerFromCursor();
+
         // 用户按热键后通常不会先移动鼠标，这里主动探测一次光标下的窗口，
         // 否则窗口吸附高亮要等第一次 MouseMove 才会出现。
         Dispatcher.BeginInvoke(new Action(UpdateHoverWindow),
@@ -182,23 +188,95 @@ public partial class CaptureOverlay : Window
         }
     }
 
+    /// <summary>
+    /// 用 Image 显示当前真实光标（箭头/I 形/手型都照原样），并按鼠标位置移动。
+    /// 系统光标在暗色遮罩上几乎看不见，这个预览保证界面里始终能看到光标形状。
+    /// </summary>
+    private void UpdateCursorPreview(Point position)
+    {
+        if (CursorPreview is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var info = new CursorInfo { cbSize = Marshal.SizeOf<CursorInfo>() };
+            if (GetCursorInfo(ref info) && info.hCursor != IntPtr.Zero)
+            {
+                if (info.hCursor != _previewCursorHandle)
+                {
+                    _previewCursorHandle = info.hCursor;
+                    CursorPreview.Source = RenderCursorBitmap(info.hCursor);
+                }
+            }
+
+            // 光标热点通常在左上角，画在鼠标位置即可
+            CursorPreviewTransform.X = position.X;
+            CursorPreviewTransform.Y = position.Y;
+            CursorPreview.Visibility = Visibility.Visible;
+        }
+        catch
+        {
+            CursorPreview.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    /// <summary>把光标句柄渲染成位图（飞书 GDI 路径同款：DrawIconEx 画到 DIB）。</summary>
+    private static BitmapSource? RenderCursorBitmap(IntPtr cursorHandle)
+    {
+        try
+        {
+            const int size = 64;
+
+            using var bitmap = new System.Drawing.Bitmap(size, size,
+                System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+
+            using (var graphics = System.Drawing.Graphics.FromImage(bitmap))
+            {
+                var hdc = graphics.GetHdc();
+                try
+                {
+                    DrawIconEx(hdc, 0, 0, cursorHandle, 0, 0, 0, IntPtr.Zero, DI_NORMAL);
+                }
+                finally
+                {
+                    graphics.ReleaseHdc(hdc);
+                }
+            }
+
+            var handle = bitmap.GetHbitmap(System.Drawing.Color.Transparent);
+            try
+            {
+                var source = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                    handle, IntPtr.Zero, Int32Rect.Empty,
+                    System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
+                source.Freeze();
+                return source;
+            }
+            finally
+            {
+                Native.DeleteObject(handle);
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     /// <summary>把自绘指针移动到当前鼠标位置（屏幕物理坐标 → 窗口 DIP）。</summary>
     private void UpdatePointerFromCursor()
     {
         try
         {
-            var screen = System.Windows.Forms.Cursor.Position;
             var dpi = VisualTreeHelper.GetDpi(this);
+            var screen = System.Windows.Forms.Cursor.Position;
             var local = new Point(
                 screen.X / dpi.DpiScaleX - Left,
                 screen.Y / dpi.DpiScaleY - Top);
 
-            Canvas.SetLeft(PointerArrow, local.X);
-            Canvas.SetTop(PointerArrow, local.Y);
-
-            Log($"pointer: screen={screen.X},{screen.Y} local={local.X:F0},{local.Y:F0} " +
-                $"win={Left:F0},{Top:F0} dpi={dpi.DpiScaleX:F2} " +
-                $"canvas={PointerCanvas.ActualWidth:F0}x{PointerCanvas.ActualHeight:F0}");
+            UpdateCursorPreview(local);
         }
         catch
         {
@@ -479,6 +557,9 @@ public partial class CaptureOverlay : Window
     private void OnMouseMove(object sender, MouseEventArgs e)
     {
         var position = e.GetPosition(this);
+
+        // 光标预览跟随鼠标（画的就是当前真实光标形状）
+        UpdateCursorPreview(position);
 
         // 记住鼠标最后一次停在选区内的位置，输出时用它画光标：
         // 用户按回车/点工具栏时鼠标可能已经移出选区，实时取位置会画不到。
