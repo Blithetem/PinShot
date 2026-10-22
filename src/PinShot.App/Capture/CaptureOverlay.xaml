@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="False" Topmost="True" ResizeMode="NoResize"
-        WindowStartupLocation="Manual" Cursor="Arrow"
+        WindowStartupLocation="Manual" Cursor="None"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         Focusable="True">
     <!-- 根容器必须有非 null 背景：AllowsTransparency 窗口的命中测试依赖绘制内容，
@@ -31,6 +31,16 @@
         <Canvas x:Name="EditorCanvas" />
 
         <Canvas x:Name="HandleCanvas" />
+
+        <!-- 自绘鼠标指针：不依赖系统光标，保证截图界面里一定看得见 -->
+        <Canvas x:Name="PointerCanvas" IsHitTestVisible="False">
+            <Path x:Name="PointerArrow" Fill="#FFFFFFFF" Stroke="#FF000000" StrokeThickness="1.2"
+                  StrokeLineJoin="Round">
+                <Path.Data>
+                    <PathGeometry Figures="M0,0 L0,17 L4.2,13 L6.8,19 L9.6,17.7 L7,11.8 L12.5,11.8 Z" />
+                </Path.Data>
+            </Path>
+        </Canvas>
 
         <Border x:Name="Magnifier" Background="#E6000000" BorderBrush="#FF2D8CFF"
                 BorderThickness="1" CornerRadius="4" Visibility="Collapsed"

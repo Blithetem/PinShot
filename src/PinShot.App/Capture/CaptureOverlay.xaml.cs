@@ -397,6 +397,10 @@ public partial class CaptureOverlay : Window
     {
         var position = e.GetPosition(this);
 
+        // 自绘鼠标指针跟随（系统光标在本窗口被设为 None，避免两个箭头重叠）
+        Canvas.SetLeft(PointerArrow, position.X);
+        Canvas.SetTop(PointerArrow, position.Y);
+
         // 记住鼠标最后一次停在选区内的位置，输出时用它画光标：
         // 用户按回车/点工具栏时鼠标可能已经移出选区，实时取位置会画不到。
         if (_selection is { } currentRegion && ToDipRect(currentRegion).Contains(position))
@@ -418,7 +422,7 @@ public partial class CaptureOverlay : Window
             return;
         }
 
-        // 编辑态：手柄上给双向箭头，其余位置保持普通箭头
+        // 编辑态：手柄上给系统双向箭头，其余位置用自绘箭头
         if (_mode == OverlayMode.Editing)
         {
             var activeHandle = _activeHandle != Handle.None ? _activeHandle : HitTestHandle(position);
@@ -430,8 +434,13 @@ public partial class CaptureOverlay : Window
                 Handle.Top or Handle.Bottom => Cursors.SizeNS,
                 Handle.Left or Handle.Right => Cursors.SizeWE,
                 Handle.Move => Cursors.SizeAll,
-                _ => Cursors.Arrow,
+                _ => Cursors.None,
             };
+
+            // 手柄上让系统光标露出来，其它位置显示自绘箭头
+            PointerCanvas.Visibility = activeHandle == Handle.None
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
             return;
         }
