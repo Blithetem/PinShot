@@ -153,14 +153,33 @@ public partial class CaptureOverlay : Window
         UpdateMask(null);
         UpdateHandles();
 
-        // 先把自绘指针放到当前鼠标位置：用户按热键后通常不会立刻移动鼠标，
-        // 只靠 MouseMove 更新的话箭头会停在 (0,0) 而看不到。
-        UpdatePointerFromCursor();
+        // 记录「按热键那一刻」的鼠标位置，作为截图里光标的默认落点。
+        // 之后鼠标在选区内移动会覆盖它；完成时若已经移出选区就用这个初始值。
+        RememberInitialCursor();
 
         // 用户按热键后通常不会先移动鼠标，这里主动探测一次光标下的窗口，
         // 否则窗口吸附高亮要等第一次 MouseMove 才会出现。
         Dispatcher.BeginInvoke(new Action(UpdateHoverWindow),
             System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    /// <summary>记录调用截图时（热键按下那一刻）的鼠标位置，作为光标默认落点。</summary>
+    private void RememberInitialCursor()
+    {
+        try
+        {
+            var screen = System.Windows.Forms.Cursor.Position;
+            var imagePoint = new Point(
+                screen.X - _virtualBounds.X,
+                screen.Y - _virtualBounds.Y);
+
+            _lastCursorInSelection = imagePoint;
+            Log($"pointer: initial screen={screen.X},{screen.Y} image={imagePoint.X:F0},{imagePoint.Y:F0}");
+        }
+        catch
+        {
+            // 读取失败就用后续 MouseMove 的记录
+        }
     }
 
     /// <summary>把自绘指针移动到当前鼠标位置（屏幕物理坐标 → 窗口 DIP）。</summary>
@@ -176,6 +195,10 @@ public partial class CaptureOverlay : Window
 
             Canvas.SetLeft(PointerArrow, local.X);
             Canvas.SetTop(PointerArrow, local.Y);
+
+            Log($"pointer: screen={screen.X},{screen.Y} local={local.X:F0},{local.Y:F0} " +
+                $"win={Left:F0},{Top:F0} dpi={dpi.DpiScaleX:F2} " +
+                $"canvas={PointerCanvas.ActualWidth:F0}x{PointerCanvas.ActualHeight:F0}");
         }
         catch
         {
@@ -426,10 +449,6 @@ public partial class CaptureOverlay : Window
     {
         var position = e.GetPosition(this);
 
-        // 自绘指针跟随鼠标
-        Canvas.SetLeft(PointerArrow, position.X);
-        Canvas.SetTop(PointerArrow, position.Y);
-
         // 记住鼠标最后一次停在选区内的位置，输出时用它画光标：
         // 用户按回车/点工具栏时鼠标可能已经移出选区，实时取位置会画不到。
         if (_selection is { } currentRegion && ToDipRect(currentRegion).Contains(position))
@@ -451,7 +470,7 @@ public partial class CaptureOverlay : Window
             return;
         }
 
-        // 编辑态：手柄上用系统双向箭头（自绘隐藏），其余位置显示自绘箭头
+        // 编辑态：手柄上给系统双向箭头，其余位置普通箭头（系统光标可见）
         if (_mode == OverlayMode.Editing)
         {
             var activeHandle = _activeHandle != Handle.None ? _activeHandle : HitTestHandle(position);
@@ -463,12 +482,8 @@ public partial class CaptureOverlay : Window
                 Handle.Top or Handle.Bottom => Cursors.SizeNS,
                 Handle.Left or Handle.Right => Cursors.SizeWE,
                 Handle.Move => Cursors.SizeAll,
-                _ => Cursors.None,
+                _ => Cursors.Arrow,
             };
-
-            PointerCanvas.Visibility = activeHandle == Handle.None
-                ? Visibility.Visible
-                : Visibility.Collapsed;
 
             return;
         }

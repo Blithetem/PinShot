@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="False" Topmost="True" ResizeMode="NoResize"
-        WindowStartupLocation="Manual" Cursor="None"
+        WindowStartupLocation="Manual" Cursor="Arrow"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         Focusable="True">
     <!-- 根容器必须有非 null 背景：AllowsTransparency 窗口的命中测试依赖绘制内容，
