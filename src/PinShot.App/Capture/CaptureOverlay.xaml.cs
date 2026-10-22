@@ -153,10 +153,34 @@ public partial class CaptureOverlay : Window
         UpdateMask(null);
         UpdateHandles();
 
+        // 先把自绘指针放到当前鼠标位置：用户按热键后通常不会立刻移动鼠标，
+        // 只靠 MouseMove 更新的话箭头会停在 (0,0) 而看不到。
+        UpdatePointerFromCursor();
+
         // 用户按热键后通常不会先移动鼠标，这里主动探测一次光标下的窗口，
         // 否则窗口吸附高亮要等第一次 MouseMove 才会出现。
         Dispatcher.BeginInvoke(new Action(UpdateHoverWindow),
             System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    /// <summary>把自绘指针移动到当前鼠标位置（屏幕物理坐标 → 窗口 DIP）。</summary>
+    private void UpdatePointerFromCursor()
+    {
+        try
+        {
+            var screen = System.Windows.Forms.Cursor.Position;
+            var dpi = VisualTreeHelper.GetDpi(this);
+            var local = new Point(
+                screen.X / dpi.DpiScaleX - Left,
+                screen.Y / dpi.DpiScaleY - Top);
+
+            Canvas.SetLeft(PointerArrow, local.X);
+            Canvas.SetTop(PointerArrow, local.Y);
+        }
+        catch
+        {
+            // 定位失败时忽略，下一次 MouseMove 会纠正
+        }
     }
 
     /// <summary>窗口消息钩子：只在手柄上换双向箭头，其余交给系统默认处理（保证光标一定可见）。</summary>
@@ -402,6 +426,10 @@ public partial class CaptureOverlay : Window
     {
         var position = e.GetPosition(this);
 
+        // 自绘指针跟随鼠标
+        Canvas.SetLeft(PointerArrow, position.X);
+        Canvas.SetTop(PointerArrow, position.Y);
+
         // 记住鼠标最后一次停在选区内的位置，输出时用它画光标：
         // 用户按回车/点工具栏时鼠标可能已经移出选区，实时取位置会画不到。
         if (_selection is { } currentRegion && ToDipRect(currentRegion).Contains(position))
@@ -423,7 +451,7 @@ public partial class CaptureOverlay : Window
             return;
         }
 
-        // 编辑态：手柄上给系统双向箭头，其余位置保持普通箭头（由系统光标显示）
+        // 编辑态：手柄上用系统双向箭头（自绘隐藏），其余位置显示自绘箭头
         if (_mode == OverlayMode.Editing)
         {
             var activeHandle = _activeHandle != Handle.None ? _activeHandle : HitTestHandle(position);
@@ -435,8 +463,12 @@ public partial class CaptureOverlay : Window
                 Handle.Top or Handle.Bottom => Cursors.SizeNS,
                 Handle.Left or Handle.Right => Cursors.SizeWE,
                 Handle.Move => Cursors.SizeAll,
-                _ => Cursors.Arrow,
+                _ => Cursors.None,
             };
+
+            PointerCanvas.Visibility = activeHandle == Handle.None
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
             return;
         }
