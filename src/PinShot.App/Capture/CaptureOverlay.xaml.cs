@@ -148,8 +148,6 @@ public partial class CaptureOverlay : Window
         UpdateMask(null);
         UpdateHandles();
 
-        System.Windows.Interop.HwndSource.FromHwnd(handle)?.AddHook(WindowProc);
-
         // 用户按热键后通常不会先移动鼠标，这里主动探测一次光标下的窗口，
         // 否则窗口吸附高亮要等第一次 MouseMove 才会出现。
         Dispatcher.BeginInvoke(new Action(UpdateHoverWindow),
@@ -420,11 +418,21 @@ public partial class CaptureOverlay : Window
             return;
         }
 
-        // 编辑态：只记录悬停手柄，光标由 WM_SETCURSOR 决定
-        // （手柄=双向箭头，其它位置保持截图前的光标样式）
+        // 编辑态：手柄上给双向箭头，其余位置保持普通箭头
         if (_mode == OverlayMode.Editing)
         {
-            _hoverHandle = _activeHandle != Handle.None ? _activeHandle : HitTestHandle(position);
+            var activeHandle = _activeHandle != Handle.None ? _activeHandle : HitTestHandle(position);
+
+            Cursor = activeHandle switch
+            {
+                Handle.TopLeft or Handle.BottomRight => Cursors.SizeNWSE,
+                Handle.TopRight or Handle.BottomLeft => Cursors.SizeNESW,
+                Handle.Top or Handle.Bottom => Cursors.SizeNS,
+                Handle.Left or Handle.Right => Cursors.SizeWE,
+                Handle.Move => Cursors.SizeAll,
+                _ => Cursors.Arrow,
+            };
+
             return;
         }
 
