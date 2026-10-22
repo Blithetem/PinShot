@@ -59,6 +59,12 @@ public partial class CaptureOverlay : Window
     private Int32Rect? _selection;
 
     private Handle _activeHandle = Handle.None;
+
+    /// <summary>鼠标当前悬停的手柄（决定显示哪个光标）。</summary>
+    private Handle _hoverHandle = Handle.None;
+
+    /// <summary>截图开始前的系统光标句柄，整个截图过程优先沿用它。</summary>
+    private IntPtr _originalCursor;
     private Point _dragStartImagePoint;
     private Int32Rect _dragStartSelection;
     private bool _spaceHeld;
@@ -145,11 +151,54 @@ public partial class CaptureOverlay : Window
         UpdateMask(null);
         UpdateHandles();
 
+        // 接管光标：默认显示「截图前的光标样式」，只在手柄上换成双向箭头。
+        // 这样和 PixPin 一致，鼠标不会整个截图过程都变成十字或箭头。
+        var info = new CursorInfo { cbSize = Marshal.SizeOf<CursorInfo>() };
+        if (GetCursorInfo(ref info) && info.hCursor != IntPtr.Zero)
+        {
+            _originalCursor = info.hCursor;
+        }
+
+        System.Windows.Interop.HwndSource.FromHwnd(handle)?.AddHook(WindowProc);
+
         // 用户按热键后通常不会先移动鼠标，这里主动探测一次光标下的窗口，
         // 否则窗口吸附高亮要等第一次 MouseMove 才会出现。
         Dispatcher.BeginInvoke(new Action(UpdateHoverWindow),
             System.Windows.Threading.DispatcherPriority.Background);
     }
+
+    /// <summary>窗口消息钩子：WM_SETCURSOR 时决定显示哪个光标。</summary>
+    private IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg != Native.WM_SETCURSOR)
+        {
+            return IntPtr.Zero;
+        }
+
+        var cursorId = _mode == OverlayMode.Editing ? CursorIdForHandle(_hoverHandle) : 0;
+
+        var cursor = cursorId > 0
+            ? Native.LoadCursor(IntPtr.Zero, new IntPtr(cursorId))
+            : _originalCursor;
+
+        if (cursor != IntPtr.Zero)
+        {
+            Native.SetCursor(cursor);
+            handled = true;
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private static int CursorIdForHandle(Handle handle) => handle switch
+    {
+        Handle.TopLeft or Handle.BottomRight => Native.IDC_SIZENWSE,
+        Handle.TopRight or Handle.BottomLeft => Native.IDC_SIZENESW,
+        Handle.Top or Handle.Bottom => Native.IDC_SIZENS,
+        Handle.Left or Handle.Right => Native.IDC_SIZEWE,
+        Handle.Move => Native.IDC_SIZEALL,
+        _ => 0,
+    };
 
     private double ScaleX => ActualWidth <= 0 ? 1 : _snapshot.PixelWidth / ActualWidth;
     private double ScaleY => ActualHeight <= 0 ? 1 : _snapshot.PixelHeight / ActualHeight;
@@ -380,23 +429,11 @@ public partial class CaptureOverlay : Window
             return;
         }
 
-        // 编辑态：按悬停位置给对应光标（手柄=双向箭头、选区内部=移动、其他=十字）
+        // 编辑态：只记录悬停手柄，光标由 WM_SETCURSOR 决定
+        // （手柄=双向箭头，其它位置保持截图前的光标样式）
         if (_mode == OverlayMode.Editing)
         {
-            var activeHandle = _activeHandle != Handle.None ? _activeHandle : HitTestHandle(position);
-            var inside = _selection is { } currentSelection && ToDipRect(currentSelection).Contains(position);
-            var canMove = _currentTool == EditorTool.None && inside;
-
-            Cursor = activeHandle switch
-            {
-                Handle.TopLeft or Handle.BottomRight => Cursors.SizeNWSE,
-                Handle.TopRight or Handle.BottomLeft => Cursors.SizeNESW,
-                Handle.Top or Handle.Bottom => Cursors.SizeNS,
-                Handle.Left or Handle.Right => Cursors.SizeWE,
-                Handle.Move => Cursors.SizeAll,
-                _ => canMove ? Cursors.SizeAll : Cursors.Cross,
-            };
-
+            _hoverHandle = _activeHandle != Handle.None ? _activeHandle : HitTestHandle(position);
             return;
         }
 
@@ -1250,6 +1287,7 @@ public partial class CaptureOverlay : Window
     private void OnCursorClicked(object sender, RoutedEventArgs e)
     {
         _showCursor = !_showCursor;
+        Log($"cursor-button -> {_showCursor}");
         UpdateOptionsBar();
         ShowTip(_showCursor ? "截图会包含鼠标指针" : "截图不包含鼠标指针");
         e.Handled = true;
@@ -1265,6 +1303,7 @@ public partial class CaptureOverlay : Window
     private void ToggleCursor()
     {
         _showCursor = !_showCursor;
+        Log($"toggle-cursor -> {_showCursor}");
         UpdateOptionsBar();
         ShowTip(_showCursor ? "截图会包含鼠标指针" : "截图不包含鼠标指针");
     }
@@ -1393,15 +1432,23 @@ public partial class CaptureOverlay : Window
                 imageY = cursor.Y - virtualBounds.Y;
             }
 
+            Log($"compose: point={(cursorImagePoint is null ? "null" : $"{imageX:F0},{imageY:F0}")} " +
+                $"sel={selection.X},{selection.Y},{selection.Width}x{selection.Height} " +
+                $"src={source.PixelWidth}x{source.PixelHeight}");
+
             if (imageX < selection.X || imageY < selection.Y ||
                 imageX >= selection.X + selection.Width || imageY >= selection.Y + selection.Height)
             {
-                return source;
+                // 光标不在选区内时退回选区中心，保证「截图带光标」一定有光标
+                Log($"compose: outside selection ({imageX:F0},{imageY:F0}) -> center");
+                imageX = selection.X + selection.Width / 2.0;
+                imageY = selection.Y + selection.Height / 2.0;
             }
 
             var info = new CursorInfo { cbSize = Marshal.SizeOf<CursorInfo>() };
             if (!GetCursorInfo(ref info) || info.hCursor == IntPtr.Zero || (info.flags & 1) == 0)
             {
+                Log($"compose: no cursor handle (ok={GetCursorInfo(ref info)} flags={info.flags})");
                 return source;
             }
 
@@ -1437,6 +1484,7 @@ public partial class CaptureOverlay : Window
                 bitmap.GetHbitmap(), IntPtr.Zero, Int32Rect.Empty,
                 BitmapSizeOptions.FromEmptyOptions());
             converted.Freeze();
+            Log($"compose: drawn at {imageX - selection.X:F0},{imageY - selection.Y:F0}");
             return converted;
         }
         catch
@@ -1587,7 +1635,9 @@ public partial class CaptureOverlay : Window
 
         output = Decorate(output);
 
-        Log($"complete action={action} size={output.PixelWidth}x{output.PixelHeight}");
+        Log($"complete action={action} size={output.PixelWidth}x{output.PixelHeight} " +
+            $"showCursor={_showCursor} corner={_cornerRadius} shadow={_addShadow} " +
+            $"lastCursor={(_lastCursorInSelection is { } lp ? $"{lp.X:F0},{lp.Y:F0}" : "null")}");
 
         Hide();
 

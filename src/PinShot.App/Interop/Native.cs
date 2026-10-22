@@ -94,4 +94,20 @@ internal static class Native
 
     [DllImport("user32.dll")]
     public static extern bool GetCursorPos(out POINT point);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr SetCursor(IntPtr cursor);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr LoadCursor(IntPtr instance, IntPtr cursorName);
+
+    /// <summary>标准光标资源 ID（LoadCursor 用）。</summary>
+    public const int IDC_ARROW = 32512;
+    public const int IDC_SIZENS = 32645;
+    public const int IDC_SIZEWE = 32644;
+    public const int IDC_SIZENWSE = 32642;
+    public const int IDC_SIZENESW = 32643;
+    public const int IDC_SIZEALL = 32646;
+
+    public const int WM_SETCURSOR = 0x0020;
 }
