@@ -140,6 +140,13 @@ public partial class App : Application
             return;
         }
 
+        // 自检入口：截图带光标合成
+        if (e.Args.Contains("--cursor-test", StringComparer.OrdinalIgnoreCase))
+        {
+            RunCursorSelfTest();
+            return;
+        }
+
         // 自检入口：贴图管理（生命周期 / 历史 / 分组 / 图像处理）
         if (e.Args.Contains("--pin-manager-test", StringComparer.OrdinalIgnoreCase))
         {
@@ -1346,6 +1353,84 @@ public partial class App : Application
             WriteLog("ToolbarOptionsSelfTest", ex);
             Shutdown();
         }
+    }
+
+    /// <summary>自检：截图带光标合成（对应 ~ 键功能）。</summary>
+    private void RunCursorSelfTest()
+    {
+        try
+        {
+            const int width = 420;
+            const int height = 300;
+
+            var source = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+            var visual = new DrawingVisual();
+            using (var dc = visual.RenderOpen())
+            {
+                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0xF5, 0xF6, 0xF8)), null,
+                    new Rect(0, 0, width, height));
+            }
+
+            source.Render(visual);
+            source.Freeze();
+
+            var selection = new Int32Rect(0, 0, width, height);
+            var bounds = new Int32Rect(0, 0, width, height);
+            var cursorPoint = new Point(width / 2.0, height / 2.0);
+
+            var withoutCursor = CaptureOverlay.ApplyOptions(source, selection, bounds, 0, false, false);
+            var withCursor = CaptureOverlay.ApplyOptions(source, selection, bounds, 0, false, true,
+                cursorPoint);
+
+            var pathWith = Path.Combine(SelfTestDirectory, "cursor-on.png");
+            SavePng(withoutCursor, Path.Combine(SelfTestDirectory, "cursor-off.png"));
+            SavePng(withCursor, pathWith);
+
+            var changed = CountDifferentPixels(withoutCursor, withCursor);
+            WriteInfo($"光标自检: 中心 60x60 差异像素={changed}（大于 0 表示光标已合成）输出={pathWith}");
+        }
+        catch (Exception ex)
+        {
+            WriteLog("CursorSelfTest", ex);
+        }
+
+        Shutdown();
+    }
+
+    /// <summary>统计两张同尺寸位图在中心 60x60 区域内不同的像素数。</summary>
+    private static int CountDifferentPixels(BitmapSource left, BitmapSource right)
+    {
+        const int box = 60;
+
+        var stride = left.PixelWidth * 4;
+        var leftPixels = new byte[stride * left.PixelHeight];
+        var rightPixels = new byte[stride * right.PixelHeight];
+        left.CopyPixels(leftPixels, stride, 0);
+        right.CopyPixels(rightPixels, stride, 0);
+
+        var centerX = left.PixelWidth / 2;
+        var centerY = left.PixelHeight / 2;
+        var changed = 0;
+
+        for (var y = Math.Max(0, centerY - box / 2);
+             y < Math.Min(left.PixelHeight, centerY + box / 2);
+             y++)
+        {
+            for (var x = Math.Max(0, centerX - box / 2);
+                 x < Math.Min(left.PixelWidth, centerX + box / 2);
+                 x++)
+            {
+                var index = y * stride + x * 4;
+                if (leftPixels[index] != rightPixels[index] ||
+                    leftPixels[index + 1] != rightPixels[index + 1] ||
+                    leftPixels[index + 2] != rightPixels[index + 2])
+                {
+                    changed++;
+                }
+            }
+        }
+
+        return changed;
     }
 
     /// <summary>自检：检查更新（不下载）。</summary>

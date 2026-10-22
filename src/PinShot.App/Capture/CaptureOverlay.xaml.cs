@@ -359,6 +359,14 @@ public partial class CaptureOverlay : Window
     {
         var position = e.GetPosition(this);
 
+        // 记住鼠标最后一次停在选区内的位置，输出时用它画光标：
+        // 用户按回车/点工具栏时鼠标可能已经移出选区，实时取位置会画不到。
+        if (_selection is { } currentRegion && ToDipRect(currentRegion).Contains(position))
+        {
+            var inside = ToImagePoint(position);
+            _lastCursorInSelection = new Point(inside.X, inside.Y);
+        }
+
         if (_mode == OverlayMode.Editing && _activeHandle != Handle.None)
         {
             var current = ToImagePoint(position);
@@ -1214,6 +1222,9 @@ public partial class CaptureOverlay : Window
     private bool _addShadow;
     private bool _showCursor;
 
+    /// <summary>鼠标最后一次停在选区内的位置（图像坐标），输出时按这里画光标。</summary>
+    private Point? _lastCursorInSelection;
+
     private void OnCornerClicked(object sender, RoutedEventArgs e)
     {
         CycleCornerRadius();
@@ -1284,14 +1295,24 @@ public partial class CaptureOverlay : Window
     /// <summary>输出前按当前选项做圆角裁剪、阴影和鼠标指针合成。</summary>
     private BitmapSource Decorate(BitmapSource source)
         => _selection is { } selection
-            ? ApplyOptions(source, selection, _virtualBounds, _cornerRadius, _addShadow, _showCursor)
+            ? ApplyOptions(source, selection, _virtualBounds, _cornerRadius, _addShadow, _showCursor,
+                _lastCursorInSelection)
             : source;
 
     /// <summary>把截图装饰选项（圆角/阴影/光标）应用到输出图像，自检与主流程共用。</summary>
     internal static BitmapSource ApplyOptions(BitmapSource source, Int32Rect selection,
         Int32Rect virtualBounds, int cornerRadius, bool addShadow, bool showCursor)
+        => ApplyOptions(source, selection, virtualBounds, cornerRadius, addShadow, showCursor, null);
+
+    /// <param name="cursorImagePoint">
+    /// 光标在整张快照里的位置；null 表示用完成瞬间的实际鼠标位置。
+    /// 显式传入是为了避免「鼠标移到工具栏再按回车」时把光标画到选区外。
+    /// </param>
+    internal static BitmapSource ApplyOptions(BitmapSource source, Int32Rect selection,
+        Int32Rect virtualBounds, int cornerRadius, bool addShadow, bool showCursor,
+        Point? cursorImagePoint)
     {
-        var withCursor = ComposeCursor(source, selection, virtualBounds, showCursor);
+        var withCursor = ComposeCursor(source, selection, virtualBounds, showCursor, cursorImagePoint);
 
         if (cornerRadius <= 0 && !addShadow)
         {
@@ -1344,8 +1365,11 @@ public partial class CaptureOverlay : Window
     }
 
     /// <summary>把当前鼠标指针画到截图里（对应 PixPin 的 ~ 显示光标）。</summary>
+    /// <param name="cursorImagePoint">
+    /// 光标在整张快照里的坐标；null 时取当前实际鼠标位置。
+    /// </param>
     private static BitmapSource ComposeCursor(BitmapSource source, Int32Rect selection,
-        Int32Rect virtualBounds, bool showCursor)
+        Int32Rect virtualBounds, bool showCursor, Point? cursorImagePoint = null)
     {
         if (!showCursor)
         {
@@ -1354,9 +1378,20 @@ public partial class CaptureOverlay : Window
 
         try
         {
-            var cursor = System.Windows.Forms.Cursor.Position;
-            var imageX = cursor.X - virtualBounds.X;
-            var imageY = cursor.Y - virtualBounds.Y;
+            double imageX;
+            double imageY;
+
+            if (cursorImagePoint is { } remembered)
+            {
+                imageX = remembered.X;
+                imageY = remembered.Y;
+            }
+            else
+            {
+                var cursor = System.Windows.Forms.Cursor.Position;
+                imageX = cursor.X - virtualBounds.X;
+                imageY = cursor.Y - virtualBounds.Y;
+            }
 
             if (imageX < selection.X || imageY < selection.Y ||
                 imageX >= selection.X + selection.Width || imageY >= selection.Y + selection.Height)
@@ -1388,7 +1423,8 @@ public partial class CaptureOverlay : Window
                 var hdc = graphics.GetHdc();
                 try
                 {
-                    DrawIconEx(hdc, imageX - selection.X, imageY - selection.Y,
+                    DrawIconEx(hdc, (int)Math.Round(imageX - selection.X),
+                        (int)Math.Round(imageY - selection.Y),
                         info.hCursor, 0, 0, 0, IntPtr.Zero, DI_NORMAL);
                 }
                 finally
