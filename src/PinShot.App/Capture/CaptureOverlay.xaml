@@ -6,25 +6,25 @@
         WindowStartupLocation="Manual" Cursor="Arrow"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         Focusable="True">
-    <!-- 根容器必须有非 null 背景：AllowsTransparency 窗口的命中测试依赖绘制内容，
+    <!-- 根容器必须有�?null 背景：AllowsTransparency 窗口的命中测试依赖绘制内容，
          否则编辑阶段某些区域点击会穿透到下层窗口 -->
     <Grid Background="#01FFFFFF">
         <Image x:Name="BgImage" Stretch="Fill" />
 
         <Canvas x:Name="MaskCanvas" IsHitTestVisible="False">
-            <Rectangle x:Name="MaskTop" Fill="#77000000" />
-            <Rectangle x:Name="MaskBottom" Fill="#77000000" />
-            <Rectangle x:Name="MaskLeft" Fill="#77000000" />
-            <Rectangle x:Name="MaskRight" Fill="#77000000" />
+            <Rectangle x:Name="MaskTop" Fill="#59000000" />
+            <Rectangle x:Name="MaskBottom" Fill="#59000000" />
+            <Rectangle x:Name="MaskLeft" Fill="#59000000" />
+            <Rectangle x:Name="MaskRight" Fill="#59000000" />
             <Rectangle x:Name="HoverRect" Stroke="#FF2D8CFF" StrokeThickness="2"
                        Visibility="Collapsed" />
             <Rectangle x:Name="SelRect" Stroke="#FFFFFFFF" StrokeThickness="1"
                        Visibility="Collapsed" />
             <Rectangle x:Name="SelRectInner" Stroke="#FF2D8CFF" StrokeThickness="1"
                        Visibility="Collapsed" />
-            <Line x:Name="CrossHorizontal" Stroke="#59FFFFFF" StrokeThickness="1"
+            <Line x:Name="CrossHorizontal" Stroke="#A6FFFFFF" StrokeThickness="1"
                   Visibility="Collapsed" />
-            <Line x:Name="CrossVertical" Stroke="#59FFFFFF" StrokeThickness="1"
+            <Line x:Name="CrossVertical" Stroke="#A6FFFFFF" StrokeThickness="1"
                   Visibility="Collapsed" />
         </Canvas>
 
@@ -60,7 +60,7 @@
             </Path>
         </Canvas>
 
-        <!-- 截图选项条：圆角、阴影、光标、比例 -->
+        <!-- 截图选项条：圆角、阴影、光标、比�?-->
         <StackPanel x:Name="OptionsBar" Orientation="Horizontal"
                     HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12"
                     Visibility="Collapsed">
@@ -91,15 +91,15 @@
                     </Setter>
                 </Style>
             </StackPanel.Resources>
-            <Button x:Name="CornerButton" Click="OnCornerClicked" ToolTip="圆角截图（Ctrl+R 循环半径）" />
-            <Button x:Name="ShadowButton" Click="OnShadowClicked" ToolTip="输出加阴影/边框" />
-            <Button x:Name="CursorButton" Click="OnCursorClicked" ToolTip="截图包含鼠标指针（~）" />
+            <Button x:Name="CornerButton" Click="OnCornerClicked" ToolTip="圆角截图（Ctrl+R 循环半径�? />
+            <Button x:Name="ShadowButton" Click="OnShadowClicked" ToolTip="输出加阴�?边框" />
+            <Button x:Name="CursorButton" Click="OnCursorClicked" ToolTip="截图包含鼠标指针（~�? />
         </StackPanel>
 
         <Border x:Name="TipBar" Style="{StaticResource HintBorder}"
                 HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,28">
             <TextBlock x:Name="TipText" Foreground="#FFDADADA" FontSize="12"
-                       Text="拖动选择 · 回车复制 · Ctrl+S 保存 · P 贴图 · R 历史选区 · C 取色 · ~ 光标 · Esc 退出" />
+                       Text="拖动选择 · 回车复制 · Ctrl+S 保存 · P 贴图 · R 历史选区 · C 取色 · ~ 光标 · Esc 退�? />
         </Border>
     </Grid>
 </Window>
