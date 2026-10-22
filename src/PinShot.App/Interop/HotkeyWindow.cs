@@ -91,10 +91,8 @@ public sealed class HotkeyWindow : IDisposable
         }
         else
         {
-            _source.RemoveHook(WndProc);
-            _source.Dispose();
-            throw new InvalidOperationException(
-                "截图热键注册失败（配置组合和内置候选都被占用），请通过托盘菜单截图。");
+            // 用户把截图热键也清空了：允许没有热键，入口走托盘菜单
+            HotkeyDisplay = "托盘菜单";
         }
 
         // 附加的 PixPin 习惯键位，注册不上不影响主流程
@@ -123,9 +121,16 @@ public sealed class HotkeyWindow : IDisposable
     }
 
     /// <summary>先试用户配置的组合，失败再按内置候选逐个尝试。</summary>
+    /// <remarks>配置为空表示明确「不设置」：不注册，也不回退到候选键。</remarks>
     private static bool TryRegisterPreferred(IntPtr handle, int id, string? preferred,
         (uint Modifiers, uint VirtualKey, string Display)[] fallbacks, out string display)
     {
+        if (string.IsNullOrWhiteSpace(preferred))
+        {
+            display = string.Empty;
+            return false;
+        }
+
         if (HotkeyParser.TryParse(preferred, out var modifiers, out var virtualKey) &&
             Native.RegisterHotKey(handle, id, modifiers | Native.MOD_NOREPEAT, virtualKey))
         {

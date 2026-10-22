@@ -28,10 +28,10 @@ public partial class SettingsWindow : Window
 
     private void LoadIntoUi(AppSettings settings)
     {
-        CaptureHotkeyBox.Text = HotkeyParser.Pretty(settings.CaptureHotkey);
-        PinHotkeyBox.Text = HotkeyParser.Pretty(settings.PinHotkey);
-        RestoreHotkeyBox.Text = HotkeyParser.Pretty(settings.RestorePinHotkey);
-        RecordHotkeyBox.Text = HotkeyParser.Pretty(settings.RecordHotkey);
+        LoadHotkeyInto(CaptureHotkeyBox, settings.CaptureHotkey);
+        LoadHotkeyInto(PinHotkeyBox, settings.PinHotkey);
+        LoadHotkeyInto(RestoreHotkeyBox, settings.RestorePinHotkey);
+        LoadHotkeyInto(RecordHotkeyBox, settings.RecordHotkey);
 
         DirectoryBox.Text = settings.ResolveSaveDirectory();
         SelectFormat(settings.DefaultFormat);
@@ -44,6 +44,13 @@ public partial class SettingsWindow : Window
         FfmpegBox.Text = settings.FfmpegPath ?? string.Empty;
         UpdateFfmpegStatus();
         UpdateQualityVisibility();
+    }
+
+    /// <summary>把配置值装进热键框：Tag 存原始文本，空表示「未设置」。</summary>
+    private static void LoadHotkeyInto(TextBox box, string? value)
+    {
+        box.Tag = value ?? string.Empty;
+        box.Text = HotkeyParser.Pretty(value);
     }
 
     private void SelectFormat(string format)
@@ -93,6 +100,15 @@ public partial class SettingsWindow : Window
             e.Handled = true;
             Keyboard.ClearFocus();
             FocusManager.SetFocusedElement(this, null);
+            return;
+        }
+
+        // Delete / Backspace：清空该热键（= 不设置）
+        if (e.Key is Key.Delete or Key.Back)
+        {
+            box.Tag = string.Empty;
+            box.Text = "未设置";
+            e.Handled = true;
             return;
         }
 
@@ -241,16 +257,22 @@ public partial class SettingsWindow : Window
     }
 
     /// <summary>优先用录入时记下的原始组合；没有改动就保持原值。</summary>
+    /// <summary>取热键框的值；空字符串表示「不设置」。</summary>
     private static string ResolveHotkey(TextBox box, string fallback)
     {
-        if (box.Tag is string tag && !string.IsNullOrWhiteSpace(tag))
+        // Tag 始终是权威值（空 = 用户清空了）
+        if (box.Tag is string tag)
         {
-            return tag;
+            return tag.Trim();
         }
 
-        // 未重新录入：把显示文本还原成 "Ctrl+Shift+S" 形式
         var compact = box.Text?.Replace(" ", string.Empty) ?? string.Empty;
-        return string.IsNullOrWhiteSpace(compact) ? fallback : compact;
+        if (string.IsNullOrWhiteSpace(compact) || compact == "未设置")
+        {
+            return string.Empty;
+        }
+
+        return compact;
     }
 
     private void OnCancel(object sender, RoutedEventArgs e)

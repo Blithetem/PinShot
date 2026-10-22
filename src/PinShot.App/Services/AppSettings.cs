@@ -10,13 +10,17 @@ namespace PinShot.App.Services;
 public sealed class AppSettings
 {
     // ---- 全局热键 ----
+    /// <summary>截图热键：默认保留一个，用户可改可清空。</summary>
     public string CaptureHotkey { get; set; } = "Ctrl+Shift+S";
 
-    public string PinHotkey { get; set; } = "Ctrl+2";
+    /// <summary>贴图热键；空表示不设置（不注册全局热键）。</summary>
+    public string PinHotkey { get; set; } = string.Empty;
 
-    public string RestorePinHotkey { get; set; } = "Ctrl+3";
+    /// <summary>恢复贴图热键；空表示不设置。</summary>
+    public string RestorePinHotkey { get; set; } = string.Empty;
 
-    public string RecordHotkey { get; set; } = "Ctrl+Shift+R";
+    /// <summary>录屏热键；空表示不设置。</summary>
+    public string RecordHotkey { get; set; } = string.Empty;
 
     // ---- 保存 ----
     /// <summary>截图保存目录；空表示用系统图片目录。</summary>
@@ -101,10 +105,11 @@ public sealed class AppSettings
     /// <summary>把越界或无法识别的值收敛到安全范围。</summary>
     private void Normalize()
     {
+        // 截图热键保底一个默认值；其它热键允许为空（表示不设置）
         CaptureHotkey = NormalizeHotkey(CaptureHotkey, "Ctrl+Shift+S");
-        PinHotkey = NormalizeHotkey(PinHotkey, "Ctrl+2");
-        RestorePinHotkey = NormalizeHotkey(RestorePinHotkey, "Ctrl+3");
-        RecordHotkey = NormalizeHotkey(RecordHotkey, "Ctrl+Shift+R");
+        PinHotkey = NormalizeOptionalHotkey(PinHotkey);
+        RestorePinHotkey = NormalizeOptionalHotkey(RestorePinHotkey);
+        RecordHotkey = NormalizeOptionalHotkey(RecordHotkey);
 
         DefaultFormat = DefaultFormat?.Trim().ToLowerInvariant() switch
         {
@@ -120,6 +125,10 @@ public sealed class AppSettings
 
     private static string NormalizeHotkey(string? value, string fallback)
         => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+
+    /// <summary>可选热键：空值保持为空，表示「不设置」。</summary>
+    private static string NormalizeOptionalHotkey(string? value)
+        => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
 
     /// <summary>解析后的截图保存目录（保证存在）。</summary>
     public string ResolveSaveDirectory()
