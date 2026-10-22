@@ -377,6 +377,13 @@ public partial class CaptureOverlay : Window
             return;
         }
 
+        // 点在工具栏/选项条/提示条上时直接放行，交给控件自己处理。
+        // 全屏截图时工具栏落在选区内部，不放行的话会被当成「拖动选区」吞掉。
+        if (IsHitOnChrome(e))
+        {
+            return;
+        }
+
         var position = e.GetPosition(this);
         var handle = HitTestHandle(position);
         var insideSelection = ToDipRect(selection).Contains(position);
@@ -443,6 +450,30 @@ public partial class CaptureOverlay : Window
         _dragStartSelection = selection;
         _dragStartImagePoint = ToImagePoint(position);
         CaptureMouse();
+    }
+
+    /// <summary>判断这次点击是否落在工具栏 / 选项条 / 提示条等界面控件上。</summary>
+    private static bool IsHitOnChrome(MouseButtonEventArgs e)
+    {
+        var source = e.OriginalSource as DependencyObject;
+
+        while (source is not null and not Window)
+        {
+            if (source is Button or TextBox or EditorToolbar)
+            {
+                return true;
+            }
+
+            if (source is FrameworkElement element &&
+                element.Name is "OptionsBar" or "TipBar" or "InfoBar")
+            {
+                return true;
+            }
+
+            source = VisualTreeHelper.GetParent(source);
+        }
+
+        return false;
     }
 
     private void OnMouseMove(object sender, MouseEventArgs e)
