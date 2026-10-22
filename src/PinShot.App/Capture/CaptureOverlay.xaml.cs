@@ -85,6 +85,11 @@ public partial class CaptureOverlay : Window
         _virtualBounds = virtualBounds;
         _purpose = purpose;
 
+        // 把快照铺满窗口：框选期间看到的是定格画面，和完成时拿到的图完全一致。
+        // 少了这一行，遮罩就是透明的，用户看到的是实时桌面，但输出用的是快照，
+        // 于是出现「截图不是我点完成那一瞬间的画面」。
+        BgImage.Source = snapshot;
+
         if (purpose != OverlayPurpose.Capture)
         {
             TipText.Text = purpose switch
